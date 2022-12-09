@@ -1,0 +1,95 @@
+﻿<Window x:Class="摸鱼联盟.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:摸鱼联盟"
+        mc:Ignorable="d"
+        ShowInTaskbar="False"
+        Title="努力工作,早日实现第一个百年计划！" Height="300" Width="388" Icon="/images/鱼.png" Loaded="Window_Loaded">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition></RowDefinition>
+            <RowDefinition></RowDefinition>
+            <RowDefinition></RowDefinition>
+            <RowDefinition></RowDefinition>
+            <RowDefinition Height="40"></RowDefinition>
+            <RowDefinition Height="120"></RowDefinition>
+        </Grid.RowDefinitions>
+        <TextBlock Grid.Row="0" Text="努力方向配置" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="6,0,0,0" ></TextBlock>
+        <Label Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Center" Content="选择txt"></Label>
+        <TextBox x:Name="txt_Reading" Grid.Row="1" Text="" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" Width="243" Height="25" IsEnabled="False"></TextBox>
+        <Button Grid.Row="1" Width="70" Height="25" HorizontalAlignment="Right" Margin="0,0,20,0" Content="选择" Click="Button_Click_1"></Button>
+
+
+        <Label Grid.Row="2" HorizontalAlignment="Left" VerticalAlignment="Center" Content="字体设置"></Label>
+        <Label Grid.Row="2" Margin="80,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Content="这是你选择的字体的颜色和尺寸的预览"></Label>
+
+        <Label Grid.Row="3" HorizontalAlignment="Left" VerticalAlignment="Center" Content="尺寸"></Label>
+
+        <Slider HorizontalAlignment="Left" Margin="50,10,0,0" Grid.Row="3" VerticalAlignment="Top" Width="326" Grid.RowSpan="2"/>
+
+        <Grid Grid.Row="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition></ColumnDefinition>
+                <ColumnDefinition></ColumnDefinition>
+                <ColumnDefinition></ColumnDefinition>
+                <ColumnDefinition></ColumnDefinition>
+                <ColumnDefinition></ColumnDefinition>
+                <ColumnDefinition></ColumnDefinition>
+                <ColumnDefinition></ColumnDefinition>
+
+            </Grid.ColumnDefinitions>
+
+            <Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Content="颜色"></Label>
+            <Border BorderThickness="1" Grid.Column="6" CornerRadius="20" Width="35" Height="35" BorderBrush="AntiqueWhite">
+                 <Image Width="25" Height="25" Source="/images/吸管.png" />
+            </Border>
+            <Border BorderThickness="1" Grid.Column="1" CornerRadius="20" Width="25" Height="25" BorderBrush="AntiqueWhite" Background="AntiqueWhite">
+ 
+            </Border>
+            <Border BorderThickness="1" Grid.Column="2" CornerRadius="20" Width="25" Height="25" BorderBrush="AliceBlue" Background="AliceBlue">
+
+            </Border>
+            <Border BorderThickness="1" Grid.Column="3" CornerRadius="20" Width="25" Height="25" BorderBrush="Black" Background="Black">
+
+            </Border>
+            <Border BorderThickness="1" Grid.Column="4" CornerRadius="20" Width="25" Height="25" BorderBrush="Crimson" Background="Crimson">
+
+            </Border>
+            <Border BorderThickness="1" Grid.Column="5" CornerRadius="20" Width="25" Height="25" BorderBrush="DarkMagenta" Background="DarkMagenta">
+
+            </Border>
+        </Grid>
+
+        <Grid Grid.Row="5">
+            <Grid.RowDefinitions>
+                <RowDefinition></RowDefinition>
+                <RowDefinition></RowDefinition>
+                <RowDefinition></RowDefinition>
+                <RowDefinition Height="35"></RowDefinition>
+
+
+            </Grid.RowDefinitions>
+            <Label Grid.Column="0" Grid.Row="0" Content="快捷键设置"></Label>
+
+            <Label Grid.Column="0" Grid.Row="1" Content="翻页"></Label>
+            <Label Grid.Column="0" Grid.Row="1" Margin="60,0,0,0" Content="向上:"></Label>
+            <TextBox Grid.Row="1" Width="100" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="100,0,0,0" TextChanged="TextBox_TextChanged">Up</TextBox>
+
+            <Label Grid.Column="0" Grid.Row="1" HorizontalContentAlignment="Left" Margin="200,0,0,0" Content="向下:"></Label>
+            <TextBox Grid.Row="1" Width="100" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="250,0,0,0">Down</TextBox>
+
+
+            <Label Grid.Column="0" Grid.Row="2" Content="控制"></Label>
+            <Label Grid.Column="0" Grid.Row="2" Margin="60,0,0,0" Content="隐藏:"></Label>
+            <TextBox Grid.Row="2" Width="100" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="100,0,0,0">Alt+C</TextBox>
+
+            <Label Grid.Column="0" Grid.Row="2" HorizontalContentAlignment="Left" Margin="200,0,0,0" Content="显示:"></Label>
+            <TextBox Grid.Row="2" Width="100" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="250,0,0,0">Alt+S</TextBox>
+
+            <Button Grid.Row="3" Content="保存配置，开始好好学习，天天摸鱼！" Margin="2" Background="#FF329A93" Click="Button_Click"></Button>
+        </Grid>
+
+    </Grid>
+</Window>
