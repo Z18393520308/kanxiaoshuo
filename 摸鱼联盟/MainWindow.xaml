@@ -6,90 +6,204 @@
         xmlns:local="clr-namespace:摸鱼联盟"
         mc:Ignorable="d"
         ShowInTaskbar="False"
-        Title="努力工作,早日实现第一个百年计划！" Height="300" Width="388" Icon="/images/鱼.png" Loaded="Window_Loaded">
+        WindowStyle="None"
+        BorderBrush="#8C8C8C"
+        BorderThickness="3"
+
+        Title="努力搬砖,早日实现第一个百年计划！" Height="600" Width="800" Icon="/images/鱼.png" Loaded="Window_Loaded" MouseDown="Window_MouseDown">
+
+    <Window.Style>
+        <Style TargetType="Window">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Window">
+                        <Border Background="White" CornerRadius="15" Opacity="1">
+                            <ContentPresenter/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Style>
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition></RowDefinition>
-            <RowDefinition></RowDefinition>
-            <RowDefinition></RowDefinition>
-            <RowDefinition></RowDefinition>
-            <RowDefinition Height="40"></RowDefinition>
-            <RowDefinition Height="120"></RowDefinition>
-        </Grid.RowDefinitions>
-        <TextBlock Grid.Row="0" Text="努力方向配置" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="6,0,0,0" ></TextBlock>
-        <Label Grid.Row="1" HorizontalAlignment="Left" VerticalAlignment="Center" Content="选择txt"></Label>
-        <TextBox x:Name="txt_Reading" Grid.Row="1" Text="" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="50,0,0,0" Width="243" Height="25" IsEnabled="False"></TextBox>
-        <Button Grid.Row="1" Width="70" Height="25" HorizontalAlignment="Right" Margin="0,0,20,0" Content="选择" Click="Button_Click_1"></Button>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition></ColumnDefinition>
+            <ColumnDefinition></ColumnDefinition>
+        </Grid.ColumnDefinitions>
 
+        <Grid Grid.Column="0" Background="#FFFFFF">
 
-        <Label Grid.Row="2" HorizontalAlignment="Left" VerticalAlignment="Center" Content="字体设置"></Label>
-        <Label Grid.Row="2" Margin="80,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Content="这是你选择的字体的颜色和尺寸的预览"></Label>
-
-        <Label Grid.Row="3" HorizontalAlignment="Left" VerticalAlignment="Center" Content="尺寸"></Label>
-
-        <Slider HorizontalAlignment="Left" Margin="50,10,0,0" Grid.Row="3" VerticalAlignment="Top" Width="326" Grid.RowSpan="2"/>
-
-        <Grid Grid.Row="4">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition></ColumnDefinition>
-                <ColumnDefinition></ColumnDefinition>
-                <ColumnDefinition></ColumnDefinition>
-                <ColumnDefinition></ColumnDefinition>
-                <ColumnDefinition></ColumnDefinition>
-                <ColumnDefinition></ColumnDefinition>
-                <ColumnDefinition></ColumnDefinition>
-
-            </Grid.ColumnDefinitions>
-
-            <Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Content="颜色"></Label>
-            <Border BorderThickness="1" Grid.Column="6" CornerRadius="20" Width="35" Height="35" BorderBrush="AntiqueWhite">
-                 <Image Width="25" Height="25" Source="/images/吸管.png" />
-            </Border>
-            <Border BorderThickness="1" Grid.Column="1" CornerRadius="20" Width="25" Height="25" BorderBrush="AntiqueWhite" Background="AntiqueWhite">
- 
-            </Border>
-            <Border BorderThickness="1" Grid.Column="2" CornerRadius="20" Width="25" Height="25" BorderBrush="AliceBlue" Background="AliceBlue">
-
-            </Border>
-            <Border BorderThickness="1" Grid.Column="3" CornerRadius="20" Width="25" Height="25" BorderBrush="Black" Background="Black">
-
-            </Border>
-            <Border BorderThickness="1" Grid.Column="4" CornerRadius="20" Width="25" Height="25" BorderBrush="Crimson" Background="Crimson">
-
-            </Border>
-            <Border BorderThickness="1" Grid.Column="5" CornerRadius="20" Width="25" Height="25" BorderBrush="DarkMagenta" Background="DarkMagenta">
-
-            </Border>
         </Grid>
 
-        <Grid Grid.Row="5">
+        <Grid Grid.Column="1" Background="#F1F0F5">
             <Grid.RowDefinitions>
-                <RowDefinition></RowDefinition>
-                <RowDefinition></RowDefinition>
-                <RowDefinition></RowDefinition>
-                <RowDefinition Height="35"></RowDefinition>
-
-
+                <RowDefinition Height="80"></RowDefinition>
+                <RowDefinition Height="60"></RowDefinition>
+                <RowDefinition Height="60"></RowDefinition>
+                <RowDefinition Height="60"></RowDefinition>
+                <RowDefinition Height="60"></RowDefinition>
+                <RowDefinition Height="60"></RowDefinition>
+                <RowDefinition Height="120"></RowDefinition>
+                <RowDefinition Height="60"></RowDefinition>
             </Grid.RowDefinitions>
-            <Label Grid.Column="0" Grid.Row="0" Content="快捷键设置"></Label>
 
-            <Label Grid.Column="0" Grid.Row="1" Content="翻页"></Label>
-            <Label Grid.Column="0" Grid.Row="1" Margin="60,0,0,0" Content="向上:"></Label>
-            <TextBox Grid.Row="1" Width="100" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="100,0,0,0" TextChanged="TextBox_TextChanged">Up</TextBox>
+            <Border Width="370" Height="40" Background="White" CornerRadius="7" Margin="0,20,0,0">
+                <TextBlock Grid.Row="0" Text="努力方向配置" FontSize="18" Foreground="#939393" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="6,0,0,0" ></TextBlock>
+            </Border>
+            <Border Grid.Row="1" Width="370" Height="40" Background="White" CornerRadius="7" Margin="0,0,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="80"></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition Width="80"></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Content="选择txt" FontSize="18" Foreground="#939393"></Label>
+                    <TextBox x:Name="txt_Reading" Grid.Column="1" Text="" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,0,0,0" Width="200" Height="30" FontSize="13" IsEnabled="False"></TextBox>
+                    <Border Grid.Column="2" CornerRadius="4" BorderBrush="#1890FF" BorderThickness="1"  Width="70" Height="25" Background="#1890FF">
+                        <Button Margin="1" Background="#1890FF" Content="选择" Click="Button_Click_1" Foreground="White" BorderThickness="0"></Button>
+                    </Border>
 
-            <Label Grid.Column="0" Grid.Row="1" HorizontalContentAlignment="Left" Margin="200,0,0,0" Content="向下:"></Label>
-            <TextBox Grid.Row="1" Width="100" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="250,0,0,0">Down</TextBox>
+                </Grid>
 
 
-            <Label Grid.Column="0" Grid.Row="2" Content="控制"></Label>
-            <Label Grid.Column="0" Grid.Row="2" Margin="60,0,0,0" Content="隐藏:"></Label>
-            <TextBox Grid.Row="2" Width="100" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="100,0,0,0">Alt+C</TextBox>
 
-            <Label Grid.Column="0" Grid.Row="2" HorizontalContentAlignment="Left" Margin="200,0,0,0" Content="显示:"></Label>
-            <TextBox Grid.Row="2" Width="100" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="250,0,0,0">Alt+S</TextBox>
+            </Border>
 
-            <Button Grid.Row="3" Content="保存配置，开始好好学习，天天摸鱼！" Margin="2" Background="#FF329A93" Click="Button_Click"></Button>
+            <Border Grid.Row="2" Width="370" Height="40" Background="White" CornerRadius="7" Margin="0,0,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90"></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+                    <Label Grid.Column="0"  HorizontalAlignment="Left" VerticalAlignment="Center" Content="字体设置" FontSize="18" Foreground="#939393"></Label>
+                    <Label Grid.Column="1" Margin="0,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" Content="这是你选择的字体的颜色和尺寸的预览" Foreground="#939393"></Label>
+                </Grid>
+
+            </Border>
+
+            <Border Grid.Row="3" Width="370" Height="40" Background="White" CornerRadius="7" Margin="0,0,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="50"></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                    </Grid.ColumnDefinitions>
+
+                    <Label Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Content="尺寸" FontSize="18" Foreground="#939393"></Label>
+                    <Slider Grid.Column="1" HorizontalAlignment="Left" Margin="0,10,0,0" Grid.Row="3" VerticalAlignment="Top" Width="310" Grid.RowSpan="2"/>
+                </Grid>
+
+            </Border>
+
+            <Border Grid.Row="4" Width="370" Height="40" Background="White" CornerRadius="7" Margin="0,0,0,0">
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90"></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+
+                    </Grid.ColumnDefinitions>
+
+                    <Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Content="字体颜色" FontSize="18" Foreground="#939393"></Label>
+
+                    <Border BorderThickness="1" Background="White" HorizontalAlignment="Center" VerticalAlignment="Center"  Grid.Column="1" CornerRadius="20" Width="35" Height="35" BorderBrush="#939393">
+                        <Button Width="35" Height="35" Background="Transparent" BorderThickness="0"></Button>
+                    </Border>
+                    <Border BorderThickness="1" Background="Black" HorizontalAlignment="Center" VerticalAlignment="Center"  Grid.Column="2" CornerRadius="20" Width="35" Height="35" BorderBrush="#939393">
+                        <Button Width="35" Height="35" Background="Transparent" BorderThickness="0"></Button>
+                    </Border>
+                    <Border BorderThickness="1" Background="#9DE5FE" HorizontalAlignment="Center" VerticalAlignment="Center"  Grid.Column="3" CornerRadius="20" Width="35" Height="35">
+                        <Button Width="35" Height="35" Background="Transparent" BorderThickness="0"></Button>
+                    </Border>
+                    <Border BorderThickness="1" Background="#FCEABA" HorizontalAlignment="Center" VerticalAlignment="Center"  Grid.Column="4" CornerRadius="20" Width="35" Height="35">
+                        <Button Width="35" Height="35" Background="Transparent" BorderThickness="0"></Button>
+                    </Border>
+                    <Border BorderThickness="1" Background="#D0EABB" HorizontalAlignment="Center" VerticalAlignment="Center"  Grid.Column="5" CornerRadius="20" Width="35" Height="35">
+                        <Button Width="35" Height="35" Background="Transparent" BorderThickness="0" Click="Button_Click_2"></Button>
+                    </Border>
+
+                    <Border BorderThickness="1" Grid.Column="6" CornerRadius="20" Width="35" Height="35" BorderBrush="AntiqueWhite">
+                        <Image Source="/images/吸管.png" Width="25" Height="25"></Image>
+                    </Border>
+
+                </Grid>
+
+            </Border>
+
+            <Border Grid.Row="5" Width="370" Height="40" Background="White" CornerRadius="7" Margin="0,0,0,0">
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="90"></ColumnDefinition>
+                        <ColumnDefinition></ColumnDefinition>
+
+                     </Grid.ColumnDefinitions>
+
+                    <Label Grid.Row="0" Grid.Column="0" HorizontalAlignment="Left" VerticalAlignment="Center" Content="字体" FontSize="18" Foreground="#939393"></Label>
+
+                    <Border Grid.Column="1" HorizontalAlignment="Right" Background="#EBEBEB" Margin="0,0,10,0" Height="28" Width="200" CornerRadius="5">
+                        <ComboBox Height="28" Width="190" BorderThickness="0" ></ComboBox>
+                    </Border>
+                   
+
+                </Grid>
+
+            </Border>
+
+
+
+            <Grid Grid.Row="6">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="35"></RowDefinition>
+
+                    <RowDefinition></RowDefinition>
+
+
+                </Grid.RowDefinitions>
+                <Label Grid.Column="0" Grid.Row="0" Content="快捷键设置" Margin="20,0,0,0" FontSize="11" Foreground="#939393"></Label>
+                <Border Grid.Row="5" Width="370" Height="80" Background="White" CornerRadius="7" Margin="0,0,0,0">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition></RowDefinition>
+                            <RowDefinition></RowDefinition>
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition></ColumnDefinition>
+                            <ColumnDefinition></ColumnDefinition>
+                            <ColumnDefinition></ColumnDefinition>
+                            <ColumnDefinition></ColumnDefinition>
+                            <ColumnDefinition></ColumnDefinition>
+                        </Grid.ColumnDefinitions>
+                    </Grid>
+                    
+                </Border>
+                <!--<Label Grid.Column="0" Grid.Row="1" Content="翻页" FontSize="11" Foreground="#939393"></Label>
+                <Label Grid.Column="0" Grid.Row="1" Margin="60,0,0,0" Content="向上:" FontSize="11" Foreground="#939393"></Label>
+                <TextBox Grid.Row="1" Width="100" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="100,0,0,0" TextChanged="TextBox_TextChanged" FontSize="11" Foreground="#939393">Up</TextBox>
+
+                <Label Grid.Column="0" Grid.Row="1" HorizontalContentAlignment="Left" Margin="200,0,0,0" Content="向下:" FontSize="11" Foreground="#939393"></Label>
+                <TextBox Grid.Row="1" Width="100" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="250,0,0,0" FontSize="11" Foreground="#939393">Down</TextBox>
+
+
+                <Label Grid.Column="0" Grid.Row="2" Content="控制" FontSize="11" Foreground="#939393"></Label>
+                <Label Grid.Column="0" Grid.Row="2" Margin="60,0,0,0" Content="隐藏:" FontSize="11" Foreground="#939393"></Label>
+                <TextBox Grid.Row="2" Width="100" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="100,0,0,0" FontSize="11" Foreground="#939393">Alt+C</TextBox>
+
+                <Label Grid.Column="0" Grid.Row="2" HorizontalContentAlignment="Left" Margin="200,0,0,0" Content="显示:" FontSize="11" Foreground="#939393"></Label>
+                <TextBox Grid.Row="2" Width="100" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="250,0,0,0" FontSize="11" Foreground="#939393">Alt+S</TextBox>-->
+                
+
+               
+            </Grid>
+
+            <Border Grid.Row="7" CornerRadius="10" Height="30" Width="370" Background="#1890FF">
+                <Button Content="保存配置" Margin="2" Background="#1890FF" Foreground="White" Click="Button_Click" BorderThickness="0"></Button>
+            </Border>
         </Grid>
+
+
 
     </Grid>
 </Window>
