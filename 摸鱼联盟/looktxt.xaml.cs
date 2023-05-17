@@ -61,11 +61,6 @@ namespace 摸鱼联盟
         {
             Window window = (Window)sender;
             window.Topmost = true;
-
-
-
-
-
         }
 
         int Lineindex=1;
@@ -84,23 +79,16 @@ namespace 摸鱼联盟
             });
 
 
-
-
-
-
             Hotkey.Regist(this, HotkeyModifiers.MOD_ALT, Key.T, HotKeyCallBackHanlder);
             Hotkey.Regist(this, HotkeyModifiers.MOD_ALT, Key.S, HotKeyCallBackHanlder);
             Hotkey.Regist(this, HotkeyModifiers.MOD_ALT, Key.C, HotKeyCallBackHanlder);
             Hotkey.Regist(this, HotkeyModifiers.None, Key.Down, HotKeyCallBackHanlder);
             Hotkey.Regist(this, HotkeyModifiers.None, Key.Up, HotKeyCallBackHanlder);
 
-
-
-
             this.Left = Convert.ToDouble(ConfigHelper.ContentValue("WINPosition", "Left", System.AppDomain.CurrentDomain.BaseDirectory + "Config.ini"));
             this.Top = Convert.ToDouble(ConfigHelper.ContentValue("WINPosition", "Top", System.AppDomain.CurrentDomain.BaseDirectory + "Config.ini"));
 
-            txtlook.Text = Readtxt.OpenFileWS(ConfigHelper.ContentValue("BOOKRACK", "Reading", System.AppDomain.CurrentDomain.BaseDirectory + "Config.ini")); ;
+            txtlook.Text = Readtxt.OpenFileWS(ConfigHelper.ContentValue("BOOKRACK", "Reading", System.AppDomain.CurrentDomain.BaseDirectory + "Config.ini")); 
 
             Lineindex= Convert.ToInt32(ConfigHelper.ContentValue("BOOKRACK", "Lineindex", System.AppDomain.CurrentDomain.BaseDirectory + "Config.ini"));
             txtlook.ScrollToLine(Lineindex);

@@ -57,7 +57,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="tools\CommandBase.cs" />
+    <Compile Include="tools\NotifyBase.cs" />
     <Compile Include="tools\Readtxt.cs" />
+    <Compile Include="ViewModels\MainViewModel.cs" />
     <Page Include="looktxt.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -111,6 +114,15 @@
   </ItemGroup>
   <ItemGroup>
     <Resource Include="images\鱼.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="images\色环.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="images\3599ce5a84697a89eb2d1b38f1aa3606.jpeg" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="images\5a08fdf0293d32790b86da49cbce165a.jpeg" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

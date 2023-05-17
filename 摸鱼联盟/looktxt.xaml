@@ -19,6 +19,6 @@
   
 >
     <Grid>
-        <TextBox x:Name="txtlook" Height="17" BorderThickness="0" TextWrapping="WrapWithOverflow" IsEnabled="True" Background="Transparent" Foreground="#FFCE4C4C"></TextBox>
+        <TextBox x:Name="txtlook" Height="17" BorderThickness="0" TextWrapping="WrapWithOverflow" IsEnabled="True" Background="Transparent" Foreground="Black"></TextBox>
     </Grid>
 </Window>
