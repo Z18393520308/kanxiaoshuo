@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>摸鱼联盟</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="app" id="app">
+    <aside class="hero">
+      <div class="hero-bg"></div>
+      <div class="hero-content">
+        <div class="logo">摸鱼联盟</div>
+        <p class="tagline">专注阅读，低调前行</p>
+        <p class="subtitle">努力搬砖 · 早日实现第一个百年计划</p>
+      </div>
+    </aside>
+
+    <main class="panel">
+      <header class="titlebar" id="titlebar">
+        <span class="titlebar-title">设置</span>
+        <div class="win-controls">
+          <button type="button" class="win-btn" id="btnMin" title="最小化">─</button>
+          <button type="button" class="win-btn win-btn-close" id="btnClose" title="关闭">×</button>
+        </div>
+      </header>
+
+      <div class="panel-body">
+        <section class="section">
+          <label class="label">书籍文件</label>
+          <div class="path-row">
+            <input type="text" class="input" id="bookPath" readonly placeholder="选择 .txt 小说文件" />
+            <button type="button" class="btn-secondary" id="btnPick">浏览</button>
+          </div>
+        </section>
+
+        <section class="section">
+          <label class="label">阅读样式</label>
+          <div class="preview" id="preview">
+            这是你选择的字体大小与颜色预览
+          </div>
+          <div class="slider-row">
+            <span class="slider-label">字号</span>
+            <input type="range" class="slider" id="fontSize" min="3" max="24" value="12" />
+            <span class="slider-value" id="fontSizeVal">12</span>
+          </div>
+          <p class="field-hint">行数越多，字号上限越低，避免阅读条裁切文字</p>
+          <div class="slider-row">
+            <span class="slider-label">行数</span>
+            <input type="range" class="slider" id="visibleLines" min="1" max="10" value="1" />
+            <span class="slider-value" id="visibleLinesVal">1</span>
+          </div>
+          <div class="colors">
+            <button type="button" class="swatch" data-color="#FFFFFF" style="--c:#FFFFFF" title="白"></button>
+            <button type="button" class="swatch active" data-color="#000000" style="--c:#000000" title="黑"></button>
+            <button type="button" class="swatch" data-color="#9DE5FE" style="--c:#9DE5FE" title="浅蓝"></button>
+            <button type="button" class="swatch" data-color="#FCEABA" style="--c:#FCEABA" title="浅黄"></button>
+            <button type="button" class="swatch" data-color="#D0EABB" style="--c:#D0EABB" title="浅绿"></button>
+          </div>
+        </section>
+
+        <section class="section shortcuts">
+          <label class="label">快捷键</label>
+          <div class="shortcut-grid">
+            <span><kbd>↑</kbd><kbd>↓</kbd> 翻页</span>
+            <span><kbd>Alt</kbd>+<kbd>C</kbd> 隐藏</span>
+            <span><kbd>Alt</kbd>+<kbd>S</kbd> 显示</span>
+            <span><kbd>Alt</kbd>+<kbd>T</kbd> 复位</span>
+          </div>
+        </section>
+
+        <button type="button" class="btn-primary" id="btnSave">保存并开始阅读</button>
+        <p class="hint" id="hint"></p>
+      </div>
+    </main>
+  </div>
+  <script src="/app.js"></script>
+</body>
+</html>

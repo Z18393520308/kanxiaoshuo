@@ -1,0 +1,4 @@
+*.exe
+*.syso
+/bin/
+out.txt
