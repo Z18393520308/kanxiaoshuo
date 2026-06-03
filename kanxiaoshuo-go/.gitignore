@@ -2,3 +2,4 @@
 *.syso
 /bin/
 out.txt
+err.txt
