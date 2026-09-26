@@ -3,76 +3,59 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>摸鱼联盟</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; frame-src 'none'" />
+  <title>摸鱼联盟 · 阅读设置</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <div class="app" id="app">
-    <aside class="hero">
-      <div class="hero-bg"></div>
-      <div class="hero-content">
-        <div class="logo">摸鱼联盟</div>
-        <p class="tagline">专注阅读，低调前行</p>
-        <p class="subtitle">努力搬砖 · 早日实现第一个百年计划</p>
+  <div class="app">
+    <aside class="sidebar" aria-label="最近阅读">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">≈</div>
+        <div><strong>摸鱼联盟</strong><span>留一点时间，给故事。</span></div>
       </div>
+      <div class="recent-heading"><h2>最近阅读</h2><span id="recentCount">0 本</span></div>
+      <div class="recent-list" id="recentList"></div>
+      <p class="empty-state" id="recentEmpty">还没有读过的书<br />从右侧选择一本 TXT 开始吧。</p>
+      <div class="sidebar-note"><span class="note-dot" aria-hidden="true"></span><p>随时回到这里<br /><small>右键系统托盘图标，打开设置；<br />双击图标，恢复阅读条。</small></p></div>
+      <div class="sidebar-bottom"><span id="version">Go 版</span><button type="button" class="exit-button" id="btnExit">退出程序</button></div>
     </aside>
 
-    <main class="panel">
-      <header class="titlebar" id="titlebar">
-        <span class="titlebar-title">设置</span>
-        <div class="win-controls">
-          <button type="button" class="win-btn" id="btnMin" title="最小化">─</button>
-          <button type="button" class="win-btn win-btn-close" id="btnClose" title="关闭">×</button>
-        </div>
-      </header>
-
-      <div class="panel-body">
-        <section class="section">
-          <label class="label">书籍文件</label>
-          <div class="path-row">
-            <input type="text" class="input" id="bookPath" readonly placeholder="选择 .txt 小说文件" />
-            <button type="button" class="btn-secondary" id="btnPick">浏览</button>
-          </div>
+    <main class="main">
+      <header class="page-header"><div><p class="eyebrow">你的阅读角落</p><h1>阅读设置</h1></div><span class="status" id="readerStatus">尚未开始</span></header>
+      <div class="settings-scroll">
+        <section class="section book-section" aria-labelledby="bookLabel">
+          <div class="section-title"><h2 id="bookLabel">正在读的书</h2><span>TXT · 自动记住进度</span></div>
+          <div class="path-row"><input type="text" class="input book-path" id="bookPath" readonly placeholder="选择电脑里的小说文件" aria-label="书籍文件路径" /><button type="button" class="button secondary" id="btnPick">选择文件</button></div>
+          <p class="field-hint" id="bookHint">每本书分别保存进度，换书后仍可继续上次的位置。</p>
         </section>
 
-        <section class="section">
-          <label class="label">阅读样式</label>
-          <div class="preview" id="preview">
-            这是你选择的字体大小与颜色预览
+        <section class="section" aria-labelledby="styleLabel">
+          <div class="section-title"><h2 id="styleLabel">阅读条样式</h2><span>透明背景 · 桌面置顶</span></div>
+          <div class="preview" id="preview" aria-label="阅读样式预览"><span id="previewText">风翻过书页，故事还在继续。</span></div>
+          <div class="style-grid">
+            <label class="field"><span>字体</span><input type="text" class="input" id="fontFamily" list="fontFamilies" maxlength="31" placeholder="Microsoft YaHei UI" /><datalist id="fontFamilies"><option value="Microsoft YaHei UI">微软雅黑</option><option value="Microsoft YaHei">微软雅黑</option><option value="SimSun">宋体</option><option value="KaiTi">楷体</option><option value="SimHei">黑体</option><option value="Segoe UI"></option></datalist></label>
+            <label class="field"><span>文字颜色</span><div class="color-row"><button type="button" class="swatch" data-color="#000000" style="--swatch:#000000" title="黑色" aria-label="黑色" aria-pressed="true"></button><button type="button" class="swatch" data-color="#FFFFFF" style="--swatch:#FFFFFF" title="白色" aria-label="白色" aria-pressed="false"></button><button type="button" class="swatch" data-color="#6C8E83" style="--swatch:#6C8E83" title="青绿色" aria-label="青绿色" aria-pressed="false"></button><button type="button" class="swatch" data-color="#9DE5FE" style="--swatch:#9DE5FE" title="浅蓝色" aria-label="浅蓝色" aria-pressed="false"></button><input id="fontColor" type="color" value="#000000" title="自定义颜色" aria-label="自定义文字颜色" /></div></label>
+            <label class="field"><span>字号 <output id="fontSizeVal" for="fontSize">12 px</output></span><input type="range" id="fontSize" min="3" max="48" value="12" /></label>
+            <label class="field"><span>行数 <output id="visibleLinesVal" for="visibleLines">1 行</output></span><input type="range" id="visibleLines" min="1" max="15" value="1" /></label>
+            <label class="field width-field"><span>阅读条宽度 <output id="windowWidthVal" for="windowWidth">800 px</output></span><input type="range" id="windowWidth" min="240" max="1600" step="10" value="800" /></label>
           </div>
-          <div class="slider-row">
-            <span class="slider-label">字号</span>
-            <input type="range" class="slider" id="fontSize" min="3" max="24" value="12" />
-            <span class="slider-value" id="fontSizeVal">12</span>
-          </div>
-          <p class="field-hint">行数越多，字号上限越低，避免阅读条裁切文字</p>
-          <div class="slider-row">
-            <span class="slider-label">行数</span>
-            <input type="range" class="slider" id="visibleLines" min="1" max="10" value="1" />
-            <span class="slider-value" id="visibleLinesVal">1</span>
-          </div>
-          <div class="colors">
-            <button type="button" class="swatch" data-color="#FFFFFF" style="--c:#FFFFFF" title="白"></button>
-            <button type="button" class="swatch active" data-color="#000000" style="--c:#000000" title="黑"></button>
-            <button type="button" class="swatch" data-color="#9DE5FE" style="--c:#9DE5FE" title="浅蓝"></button>
-            <button type="button" class="swatch" data-color="#FCEABA" style="--c:#FCEABA" title="浅黄"></button>
-            <button type="button" class="swatch" data-color="#D0EABB" style="--c:#D0EABB" title="浅绿"></button>
-          </div>
+          <p class="field-hint">窗口位置会自动记住。按“复位”快捷键可把阅读条移回可见区域。</p>
         </section>
 
-        <section class="section shortcuts">
-          <label class="label">快捷键</label>
-          <div class="shortcut-grid">
-            <span><kbd>↑</kbd><kbd>↓</kbd> 翻页</span>
-            <span><kbd>Alt</kbd>+<kbd>C</kbd> 隐藏</span>
-            <span><kbd>Alt</kbd>+<kbd>S</kbd> 显示</span>
-            <span><kbd>Alt</kbd>+<kbd>T</kbd> 复位</span>
+        <section class="section hotkey-section" aria-labelledby="hotkeyLabel">
+          <div class="section-title"><h2 id="hotkeyLabel">全局快捷键</h2><button type="button" class="text-button" id="btnResetHotkeys">恢复默认</button></div>
+          <div class="hotkey-grid">
+            <label class="hotkey-field"><span>上一页</span><input class="input hotkey" id="hotkeyUp" value="Alt+Up" maxlength="40" spellcheck="false" /></label>
+            <label class="hotkey-field"><span>下一页</span><input class="input hotkey" id="hotkeyDown" value="Alt+Down" maxlength="40" spellcheck="false" /></label>
+            <label class="hotkey-field"><span>隐藏阅读条</span><input class="input hotkey" id="hotkeyHide" value="Alt+C" maxlength="40" spellcheck="false" /></label>
+            <label class="hotkey-field"><span>显示阅读条</span><input class="input hotkey" id="hotkeyShow" value="Alt+S" maxlength="40" spellcheck="false" /></label>
+            <label class="hotkey-field"><span>复位阅读条</span><input class="input hotkey" id="hotkeyMove" value="Alt+T" maxlength="40" spellcheck="false" /></label>
           </div>
+          <p class="field-hint">直接输入组合键，例如 Ctrl+Alt+N。支持方向键、PgUp/PgDn、字母、数字和 F1–F12。保存时检查占用；隐藏后暂停翻页快捷键。</p>
         </section>
-
-        <button type="button" class="btn-primary" id="btnSave">保存并开始阅读</button>
-        <p class="hint" id="hint"></p>
       </div>
+      <footer class="footer"><p class="hint" id="hint" role="status" aria-live="polite"></p><div class="footer-actions"><button type="button" class="text-button close-button" id="btnClose">关闭设置</button><button type="button" class="button primary" id="btnSave">保存并开始阅读 <span aria-hidden="true">→</span></button></div></footer>
     </main>
   </div>
   <script src="/app.js"></script>

@@ -4,244 +4,122 @@ package reader
 
 import (
 	"fmt"
-	"unsafe"
-
 	"golang.org/x/sys/windows"
+	"unsafe"
 )
 
 const (
-	wsChild       = 0x40000000
-	esAutoVScroll = 0x0040
-	wmSetFont     = 0x0030
-	emSetReadOnly = 0x00CF
-	emLineScroll  = 0x00B6
-	emSetLimit     = 0x00D1
-	emSetSel       = 0x00B1
-	wmCtlColorEdit = 0x0138
-	wsExClientEdge = 0x00000200
-	wsExWindowEdge = 0x00000100
-	wsExStaticEdge = 0x00020000
-	lwaColorKey   = 0x00000001
-	// 色键：纯白底变透明，文字颜色不参与色键
-	colorKeyBGR = 0x00FFFFFF
-	gwlWndProc  = ^uintptr(3) // GWLP_WNDPROC = -4
+	wsChild          = 0x40000000
+	esAutoVScroll    = 0x0040
+	wmSetFont        = 0x0030
+	emSetReadOnly    = 0x00CF
+	emSetLimit       = 0x00C5
+	emSetMargins     = 0x00D3
+	emSetRectNP      = 0x00B4
+	wmCtlColorEdit   = 0x0133
+	wmCtlColorStatic = 0x0138
+	lwaColorKey      = 0x00000001
+	gwlWndProc       = ^uintptr(3)
 )
 
 var (
-	procSetWindowTextW              = user32.NewProc("SetWindowTextW")
-	procGetClientRect               = user32.NewProc("GetClientRect")
-	procSetLayeredWindowAttributes  = user32.NewProc("SetLayeredWindowAttributes")
-	procCallWindowProcW             = user32.NewProc("CallWindowProcW")
-	procSetWindowLongPtrWForEdit    = user32.NewProc("SetWindowLongPtrW")
-	procSetBkColor     = gdi32.NewProc("SetBkColor")
-	procHideCaret      = user32.NewProc("HideCaret")
-	procGetAsyncKeyState = user32.NewProc("GetAsyncKeyState")
-	procGetParent        = user32.NewProc("GetParent")
-	editWndProcOld       uintptr
+	procSetWindowTextW             = user32.NewProc("SetWindowTextW")
+	procGetClientRect              = user32.NewProc("GetClientRect")
+	procSetLayeredWindowAttributes = user32.NewProc("SetLayeredWindowAttributes")
+	procCallWindowProcW            = user32.NewProc("CallWindowProcW")
+	procSetBkColor                 = gdi32.NewProc("SetBkColor")
+	procSetTextColor               = gdi32.NewProc("SetTextColor")
+	procHideCaret                  = user32.NewProc("HideCaret")
+	procInvalidateRect             = user32.NewProc("InvalidateRect")
 )
 
-func (w *Window) createEditHost() {
-	if w.hwnd == 0 {
-		return
-	}
-	editClass, _ := windows.UTF16PtrFromString("EDIT")
+func (w *Window) createEditHost() error {
+	class, _ := windows.UTF16PtrFromString("EDIT")
 	empty, _ := windows.UTF16PtrFromString("")
 	inst, _, _ := procGetModuleHandleW()
-
-	h, _, _ := procCreateWindowExW.Call(
-		0,
-		uintptr(unsafe.Pointer(editClass)),
-		uintptr(unsafe.Pointer(empty)),
-		uintptr(wsChild|wsVisible|esMultiline|esReadonly|esAutoVScroll),
-		2, 2, defaultReaderWidth-4, 64,
-		uintptr(w.hwnd), 0, uintptr(inst), 0,
-	)
+	h, _, e := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(class)), uintptr(unsafe.Pointer(empty)), wsChild|wsVisible|esMultiline|esReadonly|esAutoVScroll, 0, 0, uintptr(w.cfg.WindowWidth), 80, uintptr(w.hwnd), 0, uintptr(inst), 0)
 	if h == 0 {
-		showReaderError("无法创建阅读编辑框")
-		return
+		return fmt.Errorf("创建阅读文本控件失败: %w", e)
 	}
 	w.editHwnd = windows.Handle(h)
-	stripEditChrome(h)
-	disableWindowTheme(h)
-	w.hookEditReadOnly(h)
-	w.enforceReadOnly()
-	if w.fontHandle != 0 {
-		procSendMessageW.Call(h, wmSetFont, uintptr(w.fontHandle), 1)
-	}
-	w.resizeEdit()
-	w.applyColorKeyTransparency()
-	w.updateEditDisplay()
+	windowLookup.Store(w.editHwnd, w)
+	theme := windows.NewLazySystemDLL("uxtheme.dll")
+	theme.NewProc("SetWindowTheme").Call(h, uintptr(unsafe.Pointer(empty)), uintptr(unsafe.Pointer(empty)))
+	w.oldEditProc, _, _ = procSetWindowLongPtrW.Call(h, gwlWndProc, readerEditCallback)
+	procSendMessageW.Call(h, emSetReadOnly, 1, 0)
+	procSendMessageW.Call(h, emSetLimit, chunkBytes*2, 0)
+	procSendMessageW.Call(h, emSetMargins, 3, 0)
+	return nil
 }
 
-func (w *Window) hookEditReadOnly(editHwnd uintptr) {
-	editWndProc := windows.NewCallback(editWndProc)
-	editWndProcOld, _, _ = procSetWindowLongPtrWForEdit.Call(editHwnd, gwlWndProc, editWndProc)
-}
-
-func stripEditChrome(hwnd uintptr) {
-	style, _, _ := procGetWindowLongPtrW.Call(hwnd, gwlStyle)
-	style &^= wsBorder
-	style &^= 0x00400000 // WS_THICKFRAME
-	procSetWindowLongPtrW.Call(hwnd, gwlStyle, style)
-
-	ex, _, _ := procGetWindowLongPtrW.Call(hwnd, gwlExStyle)
-	ex &^= wsExClientEdge
-	ex &^= wsExWindowEdge
-	ex &^= wsExStaticEdge
-	procSetWindowLongPtrW.Call(hwnd, gwlExStyle, ex)
-	procSetWindowPos.Call(hwnd, 0, 0, 0, 0, 0, 0x0027)
-}
-
-func clearEditSelection(hwnd uintptr) {
-	procSendMessageW.Call(hwnd, emSetSel, 0, 0)
-	procHideCaret.Call(hwnd)
-}
-
-// beginDragWindow 在编辑框上按下左键时，交给父窗口当标题栏拖动
-func beginDragWindow(editHwnd uintptr) {
-	parent, _, _ := procGetParent.Call(editHwnd)
-	if parent == 0 {
-		return
-	}
-	procReleaseCapture.Call()
-	procSendMessageW.Call(parent, uintptr(wmNCLButtonDown), uintptr(htCaption), 0)
-}
-
-func editWndProc(hwnd uintptr, msg uint32, wParam, lParam uintptr) uintptr {
-	switch msg {
-	case 0x0102: // WM_CHAR
+func (w *Window) editWndProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
+	switch message {
+	case 0x0100, 0x0102, 0x0104, 0x0300, 0x0301, 0x0302, 0x0303, 0x007b, 0x0203, 0x0204, 0x0205:
+		// 文本只读，不允许键盘滚动或选择改变自动保存的首行位置。
 		return 0
-	case 0x0302: // WM_PASTE
-		return 0
-	case 0x007B: // WM_CONTEXTMENU
-		return 0
-	case 0x0085: // WM_NCPAINT
-		return 0
-	case 0x0201: // WM_LBUTTONDOWN：拖动阅读条
-		beginDragWindow(hwnd)
-		return 0
-	case 0x0203, 0x0204: // 双击 / 右键：禁止选字
-		return 0
-	case 0x0100: // WM_KEYDOWN：禁止 Ctrl+A、方向键扩选
-		vk := wParam & 0xFF
-		if vk == 0x41 {
-			if st, _, _ := procGetAsyncKeyState.Call(0x11); st&0x8000 != 0 {
-				return 0
-			}
-		}
-		if vk >= 0x21 && vk <= 0x28 {
+	case 0x020a:
+		if !w.visible {
 			return 0
 		}
-	}
-	if editWndProcOld != 0 {
-		r, _, _ := procCallWindowProcW.Call(editWndProcOld, hwnd, uintptr(msg), wParam, lParam)
-		switch msg {
-		case 0x000F, 0x0007, 0x0200: // WM_PAINT / WM_SETFOCUS / WM_MOUSEMOVE
-			clearEditSelection(hwnd)
+		delta := int16(wParam >> 16)
+		if delta > 0 {
+			w.pageUp()
+		} else if delta < 0 {
+			w.pageDown()
 		}
-		return r
+		if err := w.persist(); err != nil {
+			showReaderError(err.Error())
+		}
+		return 0
+	case wmLButtonDown:
+		procReleaseCapture.Call()
+		procSendMessageW.Call(uintptr(w.hwnd), wmNCLButtonDown, htCaption, 0)
+		return 0
 	}
-	r, _, _ := procDefWindowProcW.Call(hwnd, uintptr(msg), wParam, lParam)
+	r, _, _ := procCallWindowProcW.Call(w.oldEditProc, hwnd, uintptr(message), wParam, lParam)
+	if message == 0x000f || message == 0x0007 {
+		procHideCaret.Call(hwnd)
+	}
 	return r
 }
 
-func (w *Window) enforceReadOnly() {
-	if w.editHwnd == 0 {
-		return
-	}
-	h := uintptr(w.editHwnd)
-	procSendMessageW.Call(h, emSetReadOnly, 1, 0)
-	clearEditSelection(h)
-}
-
-func (w *Window) applyColorKeyTransparency() {
-	if w.hwnd == 0 {
-		return
-	}
-	procSetLayeredWindowAttributes.Call(
-		uintptr(w.hwnd),
-		uintptr(colorKeyBGR),
-		0,
-		uintptr(lwaColorKey),
-	)
-}
-
-func (w *Window) handleCtlColorEdit(hdc uintptr) uintptr {
+// 使用与文字不同的色键，黑字和白字都能完整显示。
+func (w *Window) updateTransparency() {
 	r, g, b := parseHexColor(w.cfg.FontColor)
-	if r == 0 && g == 0 && b == 0 {
-		b = 1
+	key := uint32(0x00010101)
+	if bgr(r, g, b) == key {
+		key = 0x00020202
 	}
-	procSetBkColor.Call(hdc, uintptr(colorKeyBGR))
-	procSetTextColor.Call(hdc, uintptr(bgr(r, g, b)))
-	if w.whiteBrush != 0 {
-		return w.whiteBrush
+	if w.brush != 0 {
+		procDeleteObject.Call(w.brush)
 	}
-	br, _, _ := gdi32.NewProc("CreateSolidBrush").Call(colorKeyBGR)
-	w.whiteBrush = br
-	return br
+	w.colorKey = key
+	w.brush, _, _ = procCreateSolidBrush.Call(uintptr(key))
+	procSetLayeredWindowAttributes.Call(uintptr(w.hwnd), uintptr(key), 0, lwaColorKey)
+	procInvalidateRect.Call(uintptr(w.hwnd), 0, 1)
+	procInvalidateRect.Call(uintptr(w.editHwnd), 0, 1)
 }
-
+func (w *Window) handleCtlColorEdit(dc uintptr) uintptr {
+	r, g, b := parseHexColor(w.cfg.FontColor)
+	procSetBkColor.Call(dc, uintptr(w.colorKey))
+	procSetTextColor.Call(dc, uintptr(bgr(r, g, b)))
+	return w.brush
+}
 func (w *Window) resizeEdit() {
-	if w.editHwnd == 0 || w.hwnd == 0 {
+	if w.hwnd == 0 || w.editHwnd == 0 {
 		return
 	}
-	var rc struct{ Left, Top, Right, Bottom int32 }
+	var rc rect
 	procGetClientRect.Call(uintptr(w.hwnd), uintptr(unsafe.Pointer(&rc)))
-	procSetWindowPos.Call(
-		uintptr(w.editHwnd), 0,
-		0, 0,
-		uintptr(rc.Right-rc.Left), uintptr(rc.Bottom-rc.Top),
-		0x0010|0x0004,
-	)
+	procSetWindowPos.Call(uintptr(w.editHwnd), 0, 0, 0, uintptr(rc.Right), uintptr(rc.Bottom), 0x0014)
+	format := rect{4, 4, max(5, rc.Right-4), max(5, rc.Bottom-4)}
+	procSendMessageW.Call(uintptr(w.editHwnd), emSetRectNP, 0, uintptr(unsafe.Pointer(&format)))
 }
-
-func (w *Window) setEditText(s string) {
-	if w.editHwnd == 0 {
-		return
-	}
-	p, err := windows.UTF16PtrFromString(s)
+func (w *Window) setEditText(text string) {
+	p, err := windows.UTF16PtrFromString(text)
 	if err != nil {
 		return
 	}
 	procSetWindowTextW.Call(uintptr(w.editHwnd), uintptr(unsafe.Pointer(p)))
-	w.enforceReadOnly()
-}
-
-func (w *Window) updateEditDisplay() {
-	if w.editHwnd == 0 {
-		return
-	}
-	if w.fontHandle != 0 {
-		procSendMessageW.Call(uintptr(w.editHwnd), wmSetFont, uintptr(w.fontHandle), 1)
-	}
-
-	var show string
-	if w.loading {
-		if w.loadProgress >= 0 {
-			show = fmt.Sprintf("%s  %d%%", w.loadStatus, w.loadProgress)
-		} else {
-			show = w.loadStatus
-		}
-		if show == "" {
-			show = "加载中..."
-		}
-	} else {
-		show = w.chunkText
-		if show == "" {
-			show = w.text
-		}
-		if show == "" {
-			show = "（无内容）"
-		}
-	}
-	w.setEditText(show)
-
-	if !w.loading && w.bufLineIndex > 0 {
-		procSendMessageW.Call(uintptr(w.editHwnd), emLineScroll, 0, uintptr(w.bufLineIndex))
-	}
-	clearEditSelection(uintptr(w.editHwnd))
-}
-
-func (w *Window) paint() {
-	w.updateEditDisplay()
+	procHideCaret.Call(uintptr(w.editHwnd))
 }

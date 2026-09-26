@@ -1,0 +1,62 @@
+name: Test and build Windows
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kanxiaoshuo-go
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.25.x'
+          cache-dependency-path: kanxiaoshuo-go/go.sum
+      - run: go mod download
+      - run: go mod verify
+      - run: go test -race -count=1 ./...
+      - run: go vet ./...
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - run: node --test internal/ui/test/app.test.cjs
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.25.x'
+          cache-dependency-path: kanxiaoshuo-go/go.sum
+      - name: Check version and tag
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne "v$version") {
+            throw 'Tag must match VERSION'
+          }
+          if (-not (Select-String -Path kanxiaoshuo-go/internal/version/version.go -SimpleMatch "`"$version`"" -Quiet)) {
+            throw 'Application version must match VERSION'
+          }
+      - name: Test and package
+        shell: pwsh
+        run: ./scripts/build.ps1
+      - uses: actions/upload-artifact@v7
+        with:
+          name: moyu-windows-amd64
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error

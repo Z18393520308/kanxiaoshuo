@@ -1,16 +1,10 @@
 @echo off
 chcp 65001 >nul
-cd /d "%~dp0"
-where go >nul 2>&1 || (
-  echo 未检测到 Go，请先安装: https://go.dev/dl/
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0..\scripts\build.ps1"
+if errorlevel 1 (
+  echo 构建失败，请检查上方错误。
   pause
   exit /b 1
 )
-go mod tidy
-go build -ldflags="-s -w -H windowsgui" -o 摸鱼联盟.exe .
-if %errorlevel%==0 (
-  echo 编译成功: 摸鱼联盟.exe
-) else (
-  echo 编译失败
-)
+echo 安装包已生成到仓库根目录 dist。
 pause

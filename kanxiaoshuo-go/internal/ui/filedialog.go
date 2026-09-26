@@ -3,21 +3,23 @@
 package ui
 
 import (
+	"fmt"
+	"unicode/utf16"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
 )
 
-// PickFile 打开 TXT 文件选择对话框
-func PickFile() string {
+// PickFile 必须在 owner 所在的界面线程调用。取消选择时返回空路径、nil。
+func PickFile(owner uintptr) (string, error) {
 	comdlg32 := windows.NewLazySystemDLL("comdlg32.dll")
-	getOpenFileName := comdlg32.NewProc("GetOpenFileNameW")
-
-	buf := make([]uint16, 512)
-	filter, _ := windows.UTF16PtrFromString("文本文件\000*.txt\000")
+	buf := make([]uint16, 32768)
+	// OPENFILENAME 的筛选器是以两个 NUL 结尾的多字符串，不能使用拒绝内嵌 NUL 的 UTF16PtrFromString。
+	filter := utf16.Encode([]rune("文本文件 (*.txt)\x00*.txt\x00所有文件 (*.*)\x00*.*\x00\x00"))
 	title, _ := windows.UTF16PtrFromString("选择小说 TXT")
+	defExt, _ := windows.UTF16PtrFromString("txt")
 
-	type ofn struct {
+	type openFileName struct {
 		StructSize      uint32
 		Owner           windows.Handle
 		Instance        windows.Handle
@@ -38,19 +40,29 @@ func PickFile() string {
 		CustData        uintptr
 		Hook            uintptr
 		TemplateName    *uint16
+		Reserved        uintptr
+		ReservedValue   uint32
+		FlagsEx         uint32
 	}
-
-	o := ofn{
-		StructSize: uint32(unsafe.Sizeof(ofn{})),
-		Filter:     filter,
-		File:       &buf[0],
-		MaxFile:    uint32(len(buf)),
-		Title:      title,
-		Flags:      0x00080000 | 0x00001000,
+	o := openFileName{
+		StructSize:  uint32(unsafe.Sizeof(openFileName{})),
+		Owner:       windows.Handle(owner),
+		Filter:      &filter[0],
+		FilterIndex: 1,
+		File:        &buf[0],
+		MaxFile:     uint32(len(buf)),
+		Title:       title,
+		DefExt:      defExt,
+		// EXPLORER | FILEMUSTEXIST | PATHMUSTEXIST | NOCHANGEDIR
+		Flags: 0x00080000 | 0x00001000 | 0x00000800 | 0x00000008,
 	}
-	r, _, _ := getOpenFileName.Call(uintptr(unsafe.Pointer(&o)))
+	r, _, _ := comdlg32.NewProc("GetOpenFileNameW").Call(uintptr(unsafe.Pointer(&o)))
 	if r == 0 {
-		return ""
+		code, _, _ := comdlg32.NewProc("CommDlgExtendedError").Call()
+		if code != 0 {
+			return "", fmt.Errorf("文件选择窗口打开失败（0x%04X）", code)
+		}
+		return "", nil
 	}
-	return windows.UTF16ToString(buf)
+	return windows.UTF16ToString(buf), nil
 }

@@ -3,269 +3,367 @@
 package reader
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
+	"golang.org/x/sys/windows"
 	"kanxiaoshuo-go/internal/book"
 	"kanxiaoshuo-go/internal/config"
-
-	"golang.org/x/sys/windows"
+	"kanxiaoshuo-go/internal/hotkey"
 )
 
 const (
-	wsExLayered    = 0x00080000
-	wsExToolWindow = 0x00000080
-	wsExTopmost    = 0x00000008
-
-	wsPopup   = 0x80000000
-	wsVisible = 0x10000000
-	wsBorder  = 0x00800000
-
-	esMultiline = 0x0004
-	esReadonly  = 0x0800
-
-	wmHotkey        = 0x0312
-	wmDestroy       = 0x0002
-	wmNCLButtonDown = 0x00A1
-	wmNcPaint       = 0x0085
-	wmNcCalcSize    = 0x0083
-	wmEraseBkgnd    = 0x0014
-	wmLButtonDown   = 0x0201
-	wmSetCursor     = 0x0020
-	htCaption       = 2
-
-	idcArrow = 32512
-
-	modAlt = 0x0001
-
-	idHotkeyUp   = 1
-	idHotkeyDown = 2
-	idHotkeyHide = 3
-	idHotkeyShow = 4
-	idHotkeyMove = 5
-
-	swHide = 0
-	swShow = 5
-
-	gwlStyle   = uintptr(0xFFFFFFFFFFFFFFF0)
-	gwlExStyle = uintptr(0xFFFFFFFFFFFFFFEC)
+	wsExLayered      = 0x00080000
+	wsExToolWindow   = 0x00000080
+	wsExTopmost      = 0x00000008
+	wsPopup          = 0x80000000
+	wsVisible        = 0x10000000
+	wsBorder         = 0x00800000
+	esMultiline      = 0x0004
+	esReadonly       = 0x0800
+	wmHotkey         = 0x0312
+	wmDestroy        = 0x0002
+	wmClose          = 0x0010
+	wmNCLButtonDown  = 0x00A1
+	wmEraseBkgnd     = 0x0014
+	wmLButtonDown    = 0x0201
+	wmExitSizeMove   = 0x0232
+	wmCommandReader  = 0x8000 + 32
+	htCaption        = 2
+	idcArrow         = 32512
+	idHotkeyUp       = 1
+	idHotkeyDown     = 2
+	idHotkeyHide     = 3
+	idHotkeyShow     = 4
+	idHotkeyMove     = 5
+	swHide           = 0
+	swShowNoActivate = 4
+	gwlStyle         = ^uintptr(15)
+	gwlExStyle       = ^uintptr(19)
 )
 
 var (
-	user32   = windows.NewLazySystemDLL("user32.dll")
-	kernel32 = windows.NewLazySystemDLL("kernel32.dll")
-	gdi32    = windows.NewLazySystemDLL("gdi32.dll")
-
-	procRegisterClassExW = user32.NewProc("RegisterClassExW")
-	procCreateWindowExW  = user32.NewProc("CreateWindowExW")
-	procDefWindowProcW   = user32.NewProc("DefWindowProcW")
-	procDispatchMessageW = user32.NewProc("DispatchMessageW")
-	procGetMessageW      = user32.NewProc("GetMessageW")
-	procTranslateMessage = user32.NewProc("TranslateMessage")
-	procShowWindow       = user32.NewProc("ShowWindow")
-	procSetWindowPos     = user32.NewProc("SetWindowPos")
-	procRegisterHotKey   = user32.NewProc("RegisterHotKey")
-	procUnregisterHotKey = user32.NewProc("UnregisterHotKey")
-	procSendMessageW     = user32.NewProc("SendMessageW")
-	procPostQuitMessage  = user32.NewProc("PostQuitMessage")
+	user32                = windows.NewLazySystemDLL("user32.dll")
+	kernel32              = windows.NewLazySystemDLL("kernel32.dll")
+	gdi32                 = windows.NewLazySystemDLL("gdi32.dll")
+	procRegisterClassExW  = user32.NewProc("RegisterClassExW")
+	procUnregisterClassW  = user32.NewProc("UnregisterClassW")
+	procCreateWindowExW   = user32.NewProc("CreateWindowExW")
+	procDestroyWindow     = user32.NewProc("DestroyWindow")
+	procDefWindowProcW    = user32.NewProc("DefWindowProcW")
+	procDispatchMessageW  = user32.NewProc("DispatchMessageW")
+	procGetMessageW       = user32.NewProc("GetMessageW")
+	procTranslateMessage  = user32.NewProc("TranslateMessage")
+	procShowWindow        = user32.NewProc("ShowWindow")
+	procSetWindowPos      = user32.NewProc("SetWindowPos")
+	procRegisterHotKey    = user32.NewProc("RegisterHotKey")
+	procUnregisterHotKey  = user32.NewProc("UnregisterHotKey")
+	procSendMessageW      = user32.NewProc("SendMessageW")
+	procPostMessageW      = user32.NewProc("PostMessageW")
+	procPeekMessageW      = user32.NewProc("PeekMessageW")
+	procPostQuitMessage   = user32.NewProc("PostQuitMessage")
 	procGetWindowLongPtrW = user32.NewProc("GetWindowLongPtrW")
 	procSetWindowLongPtrW = user32.NewProc("SetWindowLongPtrW")
-	procCreateFontW      = gdi32.NewProc("CreateFontW")
-	procDeleteObject     = gdi32.NewProc("DeleteObject")
-	procLoadCursorW      = user32.NewProc("LoadCursorW")
-	procSetCursorW       = user32.NewProc("SetCursor")
-	procReleaseCapture   = user32.NewProc("ReleaseCapture")
-
-	wmMove uint32 = 0x0003
-)
-
-var (
-	activeReader *Window
-	readerMu     sync.Mutex
+	procCreateFontW       = gdi32.NewProc("CreateFontW")
+	procDeleteObject      = gdi32.NewProc("DeleteObject")
+	procLoadCursorW       = user32.NewProc("LoadCursorW")
+	procReleaseCapture    = user32.NewProc("ReleaseCapture")
+	procCreateSolidBrush  = gdi32.NewProc("CreateSolidBrush")
+	procFillRect          = user32.NewProc("FillRect")
+	apiMu                 sync.Mutex
+	activeReader          *Window
+	classSerial           atomic.Uint64
+	windowLookup          sync.Map
+	readerWindowCallback  = windows.NewCallback(readerWindowProc)
+	readerEditCallback    = windows.NewCallback(readerEditProc)
 )
 
 type wndclassex struct {
-	Size       uint32
-	Style      uint32
-	WndProc    uintptr
-	ClsExtra   int32
-	WndExtra   int32
-	Instance   windows.Handle
-	Icon       windows.Handle
-	Cursor     windows.Handle
-	Background windows.Handle
-	MenuName   *uint16
-	ClassName  *uint16
-	IconSm     windows.Handle
+	Size                               uint32
+	Style                              uint32
+	WndProc                            uintptr
+	ClsExtra, WndExtra                 int32
+	Instance, Icon, Cursor, Background windows.Handle
+	MenuName, ClassName                *uint16
+	IconSm                             windows.Handle
 }
 
 type msg struct {
-	Hwnd    windows.Handle
-	Message uint32
-	WParam  uintptr
-	LParam  uintptr
-	Time    uint32
-	Pt      struct{ X, Y int32 }
+	Hwnd           windows.Handle
+	Message        uint32
+	WParam, LParam uintptr
+	Time           uint32
+	Pt             struct{ X, Y int32 }
+	Private        uint32
 }
 
-// Window 分层自绘透明阅读条
+type request struct {
+	run    func() error
+	result chan error
+}
+
+// Window 的所有 Win32 控件、配置和分页状态只允许在 run 的专用 OS 线程使用。
+// 外部接口通过命令队列同步获取操作结果，不跨线程直接操作控件。
 type Window struct {
-	cfg             config.Settings
-	onSave          func(config.Settings)
-	hwnd            windows.Handle
-	editHwnd        windows.Handle
-	whiteBrush      uintptr // 色键白底画刷
-	text            string // 错误信息；大书全文（bigText 模式）
-	textRunes       []rune // 小书全书
-	bigText         bool   // 大书用 string 按字节分块，避免 []rune 占用过大
-	loadedBookPath  string
-	charIndex       int    // 当前块起点（rune 下标）
-	bufLineIndex    int    // 当前块内显示起始行
-	chunkStart      int
-	chunkEnd        int
-	chunkText       string // 当前装入控件的原文（约 5 折行）
-	chunkLines      int
-	prefetchNext      chunkSnapshot
-	prefetchNextReady bool
-	prefetchForEnd    int
-	prefetchPrev      chunkSnapshot
-	prefetchPrevReady bool
-	prefetchForStart  int // 预读块对应的当前 chunkStart
-	keyMu           sync.Mutex
-	fontHandle      windows.Handle
-	running         bool
-
-	loading      bool
-	loadProgress int // 0–100；-1 表示不确定（跑马灯）
-	loadStatus   string
-	loadAnim     int
-	loadGen      int
-	loadMu       sync.Mutex
-	pendingText  string
-	pendingErr   error
-	pendingPath  string
-
-	applyMu        sync.Mutex
-	hasPendingCfg  bool
-	pendingCfg     config.Settings
+	cfg                  config.Settings
+	onSave               func(config.Settings)
+	hwnd, editHwnd       windows.Handle
+	fontHandle           windows.Handle
+	brush                uintptr
+	colorKey             uint32
+	oldEditProc          uintptr
+	text                 string
+	chunkText            string
+	chunkStart, chunkEnd int
+	position             int
+	previous             []int
+	forward              []int
+	visible              bool
+	registered           map[int]bool
+	commands             chan request
+	done                 chan struct{}
 }
 
+// 系统回调只注册一次，避免关闭/重开永久保留捕获整本书的 Go 闭包。
+func readerWindowProc(hwnd windows.Handle, message uint32, wParam, lParam uintptr) uintptr {
+	if entry, ok := windowLookup.Load(hwnd); ok {
+		return entry.(*Window).wndProc(hwnd, message, wParam, lParam)
+	}
+	r, _, _ := procDefWindowProcW.Call(uintptr(hwnd), uintptr(message), wParam, lParam)
+	return r
+}
+
+func readerEditProc(hwnd uintptr, message uint32, wParam, lParam uintptr) uintptr {
+	if entry, ok := windowLookup.Load(windows.Handle(hwnd)); ok {
+		return entry.(*Window).editWndProc(hwnd, message, wParam, lParam)
+	}
+	r, _, _ := procDefWindowProcW.Call(hwnd, uintptr(message), wParam, lParam)
+	return r
+}
+
+func liveReader() *Window {
+	if activeReader != nil {
+		select {
+		case <-activeReader.done:
+			activeReader = nil
+		default:
+		}
+	}
+	return activeReader
+}
+
+// Start 等待窗口、热键和书本均准备完成后返回。已有窗口时应用设置并显示。
 func Start(cfg config.Settings, onSave func(config.Settings)) error {
-	readerMu.Lock()
-	defer readerMu.Unlock()
-	if activeReader != nil && activeReader.hwnd != 0 {
-		return nil
-	}
-	if activeReader != nil && activeReader.hwnd == 0 {
-		activeReader = nil
-	}
+	apiMu.Lock()
+	defer apiMu.Unlock()
 	cfg = config.Normalize(cfg)
-	w := &Window{cfg: cfg, onSave: onSave}
-	go w.run()
+	if w := liveReader(); w != nil {
+		text, err := prepareText(w, cfg)
+		if err != nil {
+			return err
+		}
+		return w.invoke(func() error {
+			if err := w.applySettings(cfg, text); err != nil {
+				return err
+			}
+			return w.show()
+		})
+	}
+	if cfg.BookPath == "" {
+		return errors.New("请先选择 TXT 小说")
+	}
+	text, err := book.Load(cfg.BookPath)
+	if err != nil {
+		return fmt.Errorf("读取小说失败: %w", err)
+	}
+	w := &Window{cfg: cfg, onSave: onSave, text: text, visible: true, registered: make(map[int]bool), commands: make(chan request, 16), done: make(chan struct{})}
+	ready := make(chan error, 1)
+	go w.run(ready)
+	if err = <-ready; err != nil {
+		<-w.done
+		return err
+	}
+	activeReader = w
 	return nil
 }
 
-func ApplySettings(cfg config.Settings) {
-	readerMu.Lock()
-	w := activeReader
-	readerMu.Unlock()
+func prepareText(w *Window, cfg config.Settings) (string, error) {
+	var currentPath string
+	if err := w.invoke(func() error { currentPath = w.cfg.BookPath; return nil }); err != nil {
+		return "", err
+	}
+	if cfg.BookPath == currentPath {
+		return "", nil
+	}
+	if cfg.BookPath == "" {
+		return "", errors.New("请先选择 TXT 小说")
+	}
+	text, err := book.Load(cfg.BookPath)
+	if err != nil {
+		return "", fmt.Errorf("读取小说失败: %w", err)
+	}
+	return text, nil
+}
+
+func ApplySettings(cfg config.Settings) error {
+	apiMu.Lock()
+	defer apiMu.Unlock()
+	w := liveReader()
 	if w == nil {
-		return
+		return errors.New("阅读条尚未启动")
 	}
-	w.applyMu.Lock()
-	w.pendingCfg = config.Normalize(cfg)
-	w.hasPendingCfg = true
-	w.applyMu.Unlock()
-	w.postUI(wmApplySettings, 0, 0)
+	cfg = config.Normalize(cfg)
+	text, err := prepareText(w, cfg)
+	if err != nil {
+		return err
+	}
+	return w.invoke(func() error { return w.applySettings(cfg, text) })
 }
 
-func (w *Window) handleApplySettings() {
-	w.applyMu.Lock()
-	if !w.hasPendingCfg {
-		w.applyMu.Unlock()
-		return
+func operate(optional bool, f func(*Window) error) error {
+	apiMu.Lock()
+	defer apiMu.Unlock()
+	w := liveReader()
+	if w == nil {
+		if optional {
+			return nil
+		}
+		return errors.New("阅读条尚未启动")
 	}
-	cfg := w.pendingCfg
-	w.hasPendingCfg = false
-	w.applyMu.Unlock()
+	return w.invoke(func() error { return f(w) })
+}
+func Show() error { return operate(false, func(w *Window) error { return w.show() }) }
+func Hide() error { return operate(false, func(w *Window) error { return w.hide() }) }
+func Toggle() error {
+	return operate(false, func(w *Window) error {
+		if w.visible {
+			return w.hide()
+		}
+		return w.show()
+	})
+}
+func Flush() error { return operate(true, func(w *Window) error { return w.persist() }) }
 
-	pathChanged := cfg.BookPath != w.loadedBookPath
-	w.cfg = cfg
-
-	if pathChanged || w.bookLen() == 0 {
-		w.loadBook()
-		return
-	}
-
-	w.applyFont()
-	w.applyLayout()
-	w.buildChunkAt(w.charIndex)
-	w.clampBufLineIndex()
-	w.applyColorKeyTransparency()
-	w.paint()
+// Seek 供重新定位文件等明确改变书签的操作使用，不写磁盘，便于上层事务回滚。
+// 普通 ApplySettings 始终保留同一本书的当前首行，不受过期 UI 配置影响。
+func Seek(positionBytes int) error {
+	return operate(false, func(w *Window) error {
+		w.previous, w.forward = nil, nil
+		w.displayAt(byteBoundary(w.text, positionBytes))
+		return nil
+	})
 }
 
-func (w *Window) run() {
+func Close() error {
+	apiMu.Lock()
+	defer apiMu.Unlock()
+	w := liveReader()
+	if w == nil {
+		return nil
+	}
+	err := w.invoke(func() error {
+		if err := w.persist(); err != nil {
+			return err
+		}
+		r, _, e := procDestroyWindow.Call(uintptr(w.hwnd))
+		if r == 0 {
+			return fmt.Errorf("关闭阅读条失败: %w", e)
+		}
+		return nil
+	})
+	if err == nil {
+		<-w.done
+		activeReader = nil
+	}
+	return err
+}
+
+func (w *Window) invoke(f func() error) error {
+	req := request{run: f, result: make(chan error, 1)}
+	select {
+	case w.commands <- req:
+	case <-w.done:
+		return errors.New("阅读条已关闭")
+	}
+	r, _, e := procPostMessageW.Call(uintptr(w.hwnd), wmCommandReader, 0, 0)
+	if r == 0 {
+		return fmt.Errorf("阅读条命令发送失败: %w", e)
+	}
+	select {
+	case err := <-req.result:
+		return err
+	case <-w.done:
+		select {
+		case err := <-req.result:
+			return err
+		default:
+			return errors.New("阅读条已关闭")
+		}
+	}
+}
+
+func (w *Window) run(ready chan<- error) {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
-
-	className, _ := windows.UTF16PtrFromString("MoyuReaderBarV3")
-	wndProc := windows.NewCallback(w.wndProc)
-
+	defer close(w.done)
+	className, _ := windows.UTF16PtrFromString(fmt.Sprintf("MoyuReaderBarV4_%d", classSerial.Add(1)))
 	inst, _, _ := procGetModuleHandleW()
-	hbr, _, _ := gdi32.NewProc("CreateSolidBrush").Call(0x00FFFFFF)
-	var wc wndclassex
-	wc.Size = uint32(unsafe.Sizeof(wc))
-	wc.WndProc = wndProc
-	wc.Instance = inst
-	wc.ClassName = className
-	wc.Background = windows.Handle(hbr)
 	cur, _, _ := procLoadCursorW.Call(0, idcArrow)
-	wc.Cursor = windows.Handle(cur)
-	procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc)))
-
-	left := int32(w.cfg.WindowLeft)
-	top := int32(w.cfg.WindowTop)
-	if left < 0 || top < 0 {
-		left, top = 100, 100
-	}
-	title, _ := windows.UTF16PtrFromString("")
-
-	hwnd, _, _ := procCreateWindowExW.Call(
-		uintptr(wsExLayered|wsExToolWindow|wsExTopmost),
-		uintptr(unsafe.Pointer(className)),
-		uintptr(unsafe.Pointer(title)),
-		uintptr(wsPopup|wsVisible),
-		uintptr(left), uintptr(top), defaultReaderWidth, 80,
-		0, 0, uintptr(inst), 0,
-	)
-	if hwnd == 0 {
-		readerMu.Lock()
-		activeReader = nil
-		readerMu.Unlock()
-		showReaderError("无法创建阅读条窗口")
+	wc := wndclassex{WndProc: readerWindowCallback, Instance: inst, ClassName: className, Cursor: windows.Handle(cur)}
+	wc.Size = uint32(unsafe.Sizeof(wc))
+	if r, _, e := procRegisterClassExW.Call(uintptr(unsafe.Pointer(&wc))); r == 0 {
+		ready <- fmt.Errorf("注册阅读窗口失败: %w", e)
 		return
 	}
-	w.hwnd = windows.Handle(hwnd)
-	removeWindowBorder(hwnd)
-
-	readerMu.Lock()
-	activeReader = w
-	readerMu.Unlock()
-
-	w.applyFont()
-	w.applyLayout()
-	w.createEditHost()
-	w.placeReaderCenter()
-	w.beginLoading("准备中...", 0)
+	defer procUnregisterClassW.Call(uintptr(unsafe.Pointer(className)), uintptr(inst))
+	title, _ := windows.UTF16PtrFromString("")
+	h, _, err := procCreateWindowExW.Call(wsExLayered|wsExToolWindow|wsExTopmost, uintptr(unsafe.Pointer(className)), uintptr(unsafe.Pointer(title)), wsPopup, uintptr(int32(w.cfg.WindowLeft)), uintptr(int32(w.cfg.WindowTop)), uintptr(w.cfg.WindowWidth), 80, 0, 0, uintptr(inst), 0)
+	if h == 0 {
+		ready <- fmt.Errorf("创建阅读条失败: %w", err)
+		return
+	}
+	w.hwnd = windows.Handle(h)
+	windowLookup.Store(w.hwnd, w)
+	defer func() {
+		w.unregisterHotkeys()
+		// 确保子控件释放所选字体后再销毁 GDI 对象。
+		procDestroyWindow.Call(h)
+		windowLookup.Delete(w.hwnd)
+		windowLookup.Delete(w.editHwnd)
+		// 启动失败尚未进入消息循环，清除 WM_QUIT 防止下一次复用此线程时提前退出。
+		var leftover msg
+		procPeekMessageW.Call(uintptr(unsafe.Pointer(&leftover)), 0, 0x0012, 0x0012, 1)
+		if w.fontHandle != 0 {
+			procDeleteObject.Call(uintptr(w.fontHandle))
+		}
+		if w.brush != 0 {
+			procDeleteObject.Call(w.brush)
+		}
+	}()
+	font, err := createFont(w.cfg)
+	if err != nil {
+		ready <- err
+		return
+	}
+	w.fontHandle = font
+	if err = w.createEditHost(); err != nil {
+		ready <- err
+		return
+	}
+	w.applyFontAndLayout()
+	w.updateTransparency()
+	w.position = w.initialPosition(w.cfg)
+	w.displayAt(w.position)
+	if err = w.registerHotkeys(w.cfg, true); err != nil {
+		ready <- err
+		return
+	}
 	w.ensureWindowVisible()
-
-	w.registerHotkeys()
-	w.running = true
-	w.postUI(wmReaderInit, 0, 0)
-
+	ready <- nil
 	var m msg
 	for {
 		r, _, _ := procGetMessageW.Call(uintptr(unsafe.Pointer(&m)), 0, 0, 0)
@@ -275,290 +373,231 @@ func (w *Window) run() {
 		procTranslateMessage.Call(uintptr(unsafe.Pointer(&m)))
 		procDispatchMessageW.Call(uintptr(unsafe.Pointer(&m)))
 	}
-	w.unregisterHotkeys()
-	w.deleteGdiObjects()
-	if w.whiteBrush != 0 {
-		procDeleteObject.Call(w.whiteBrush)
-		w.whiteBrush = 0
+}
+
+func (w *Window) applySettings(cfg config.Settings, text string) error {
+	old := w.cfg
+	changed := cfg.BookPath != old.BookPath
+	font, err := createFont(cfg)
+	if err != nil {
+		return err
 	}
+	w.unregisterHotkeys()
+	if err = w.registerHotkeys(cfg, w.visible); err != nil {
+		procDeleteObject.Call(uintptr(font))
+		rollback := w.registerHotkeys(old, w.visible)
+		if rollback != nil {
+			return errors.Join(err, fmt.Errorf("恢复原快捷键失败: %w", rollback))
+		}
+		return err
+	}
+	w.syncPositionFromView()
+	pos := w.position
+	w.cfg = cfg
+	if changed {
+		w.text = text
+		pos = w.initialPosition(cfg)
+	}
+	oldFont := w.fontHandle
+	w.fontHandle = font
+	w.applyFontAndLayout()
+	if oldFont != 0 {
+		procDeleteObject.Call(uintptr(oldFont))
+	}
+	w.updateTransparency()
+	w.previous = nil
+	w.forward = nil
+	w.displayAt(pos)
+	w.clampWindowOnScreen()
+	return nil
 }
 
-func procGetModuleHandleW() (windows.Handle, uintptr, error) {
-	p := kernel32.NewProc("GetModuleHandleW")
-	r, _, e := p.Call(0)
-	return windows.Handle(r), r, e
+func (w *Window) initialPosition(cfg config.Settings) int {
+	pos := cfg.PositionBytes
+	if cfg.SchemaVersion < 2 {
+		pos = migrateLegacyPosition(w.text, cfg.CharIndex, cfg.LineIndex, cfg.FontSize, 480)
+	}
+	return byteBoundary(w.text, pos)
 }
 
-func removeWindowBorder(hwnd uintptr) {
-	style, _, _ := procGetWindowLongPtrW.Call(hwnd, gwlStyle)
-	style &^= wsBorder
-	style &^= 0x00C00000
-	style &^= 0x00040000
-	procSetWindowLongPtrW.Call(hwnd, gwlStyle, style)
-
-	ex, _, _ := procGetWindowLongPtrW.Call(hwnd, gwlExStyle)
-	ex &^= 0x00000200
-	ex &^= 0x00020000
-	procSetWindowLongPtrW.Call(hwnd, gwlExStyle, ex)
-
-	procSetWindowPos.Call(hwnd, 0, 0, 0, 0, 0, 0x0027)
-}
-
-func disableWindowTheme(hwnd uintptr) {
-	ux := windows.NewLazySystemDLL("uxtheme.dll")
-	p := ux.NewProc("SetWindowTheme")
-	empty, _ := windows.UTF16PtrFromString("")
-	p.Call(hwnd, uintptr(unsafe.Pointer(empty)), uintptr(unsafe.Pointer(empty)))
-}
-
-func (w *Window) wndProc(hwnd windows.Handle, msg uint32, wParam, lParam uintptr) uintptr {
-	switch msg {
+func (w *Window) wndProc(hwnd windows.Handle, message uint32, wParam, lParam uintptr) uintptr {
+	switch message {
+	case wmCommandReader:
+		for {
+			select {
+			case req := <-w.commands:
+				req.result <- req.run()
+			default:
+				return 0
+			}
+		}
 	case wmHotkey:
-		w.handleHotkey(int(wParam))
+		if err := w.handleHotkey(int(wParam)); err != nil {
+			showReaderError(err.Error())
+		}
 		return 0
 	case wmDestroy:
-		readerMu.Lock()
-		activeReader = nil
-		readerMu.Unlock()
 		procPostQuitMessage.Call(0)
 		return 0
-	case wmMove:
-		w.savePosition()
-	case 0x0005: // WM_SIZE
-		w.resizeEdit()
-	case wmCtlColorEdit:
-		return w.handleCtlColorEdit(wParam)
-	case wmNcPaint, wmNcCalcSize:
+	case wmClose:
+		if err := w.hide(); err != nil {
+			showReaderError(err.Error())
+		}
 		return 0
+	case wmExitSizeMove:
+		w.clampWindowOnScreen()
+		if err := w.persist(); err != nil {
+			showReaderError(err.Error())
+		}
+		return 0
+	case 0x007e, 0x02e0: // WM_DISPLAYCHANGE / WM_DPICHANGED
+		w.clampWindowOnScreen()
+		return 0
+	case 0x0005:
+		w.resizeEdit()
+	case wmCtlColorEdit, wmCtlColorStatic:
+		return w.handleCtlColorEdit(wParam)
 	case wmEraseBkgnd:
-		if w.whiteBrush != 0 {
-			return w.whiteBrush
+		if w.brush != 0 {
+			var rc rect
+			procGetClientRect.Call(uintptr(hwnd), uintptr(unsafe.Pointer(&rc)))
+			procFillRect.Call(wParam, uintptr(unsafe.Pointer(&rc)), w.brush)
 		}
 		return 1
 	case wmLButtonDown:
 		procReleaseCapture.Call()
-		procSendMessageW.Call(uintptr(w.hwnd), uintptr(wmNCLButtonDown), uintptr(htCaption), 0)
-		return 0
-	case 0x0084: // WM_NCHITTEST：整块区域可拖动
-		return 2 // HTCAPTION
-	case wmSetCursor:
-		cur, _, _ := procLoadCursorW.Call(0, idcArrow)
-		procSetCursorW.Call(cur)
-		return 1
-	case wmLoadProgress:
-		w.loadProgress = int(wParam)
-		if w.loadProgress > 100 {
-			w.loadProgress = 100
-		}
-		w.paint()
-		return 0
-	case wmLoadDone:
-		w.finishLoad()
-		return 0
-	case wmReaderInit:
-		w.loadBook()
-		return 0
-	case wmApplySettings:
-		w.handleApplySettings()
-		return 0
-	case wmPrefetchNext:
-		w.doPrefetchNext()
-		return 0
-	case wmPrefetchPrev:
-		w.doPrefetchPrev()
-		return 0
-	case wmDeferPrefetch:
-		if !w.loading {
-			w.schedulePrefetchNext()
-			w.schedulePrefetchPrev()
-		}
-		return 0
-	case 0x0113: // WM_TIMER
-		if wParam == timerLoadAnim && w.loading {
-			w.loadAnim++
-			w.paint()
-		}
+		procSendMessageW.Call(uintptr(hwnd), wmNCLButtonDown, htCaption, 0)
 		return 0
 	}
-	r, _, _ := procDefWindowProcW.Call(uintptr(hwnd), uintptr(msg), wParam, lParam)
+	r, _, _ := procDefWindowProcW.Call(uintptr(hwnd), uintptr(message), wParam, lParam)
 	return r
 }
 
-func (w *Window) applyFont() {
-	if w.fontHandle != 0 {
-		procDeleteObject.Call(uintptr(w.fontHandle))
-		w.fontHandle = 0
-	}
-	size := w.cfg.FontSize
-	if size < 3 {
-		size = 3
-	}
-	if size > 24 {
-		size = 24
-	}
-	height := -int32(size)
-	name, _ := windows.UTF16PtrFromString("Microsoft YaHei UI")
-	h, _, _ := procCreateFontW.Call(
-		uintptr(height), 0, 0, 0, 400, 0, 0, 0, 1, 0, 0, 0, 0,
-		uintptr(unsafe.Pointer(name)),
-	)
-	w.fontHandle = windows.Handle(h)
-	if w.editHwnd != 0 {
-		procSendMessageW.Call(uintptr(w.editHwnd), wmSetFont, uintptr(w.fontHandle), 1)
-		w.enforceReadOnly()
-	}
-	w.applyLayout()
-}
-
-func (w *Window) deleteGdiObjects() {
-	if w.fontHandle != 0 {
-		procDeleteObject.Call(uintptr(w.fontHandle))
-	}
-}
-
-func (w *Window) postUI(msg uint32, wParam, lParam uintptr) {
-	if w.hwnd == 0 {
-		return
-	}
-	p := user32.NewProc("PostMessageW")
-	p.Call(uintptr(w.hwnd), uintptr(msg), wParam, lParam)
-}
-
-func (w *Window) loadBook() {
-	path := w.cfg.BookPath
-	if path == "" {
-		return
-	}
-
-	w.loadMu.Lock()
-	w.loadGen++
-	gen := w.loadGen
-	w.loadMu.Unlock()
-
-	w.textRunes = nil
-	w.bigText = false
-	w.text = ""
-	w.chunkText = ""
-	w.invalidatePrefetch()
-	w.beginLoading("正在读取...", 0)
-	w.applyLayout()
-	w.ensureWindowVisible()
-	w.paint()
-
-	hwnd := w.hwnd
-	go func() {
-		var lastPct int
-		text, err := book.LoadWithProgress(path, func(p int) {
-			if hwnd == 0 || p < lastPct {
-				return
-			}
-			if p-lastPct < 2 && p < 100 {
-				return
-			}
-			lastPct = p
-			w.postUI(wmLoadProgress, uintptr(p), 0)
-		})
-
-		w.loadMu.Lock()
-		stale := w.loadGen != gen
-		if !stale {
-			w.pendingText = text
-			w.pendingErr = err
-			w.pendingPath = path
-		}
-		w.loadMu.Unlock()
-		if stale {
-			return
-		}
-		w.postUI(wmLoadDone, 0, 0)
-	}()
-}
-
-func (w *Window) finishLoad() {
-	w.loadMu.Lock()
-	text := w.pendingText
-	err := w.pendingErr
-	path := w.pendingPath
-	w.loadMu.Unlock()
-
-	if err != nil {
-		w.bigText = false
-		w.text = fmt.Sprintf("无法读取文件: %v", err)
-		w.textRunes = []rune(w.text)
-	} else {
-		w.setBookRunes(text)
-	}
-	w.loadedBookPath = path
-	w.initCharIndexFromConfig()
-	w.endLoading()
-	w.applyLayout()
-	w.placeReaderCenter()
-	w.ensureWindowVisible()
-	w.paint()
-	w.savePosition()
-	w.cfg.CharIndex = w.charIndex
-	_ = config.Save(w.cfg)
+func procGetModuleHandleW() (windows.Handle, uintptr, error) {
+	r, _, e := kernel32.NewProc("GetModuleHandleW").Call(0)
+	return windows.Handle(r), r, e
 }
 
 func (w *Window) savePosition() {
-	var rect struct {
-		Left, Top, Right, Bottom int32
+	var r rect
+	if ok, _, _ := procGetWindowRect.Call(uintptr(w.hwnd), uintptr(unsafe.Pointer(&r))); ok != 0 {
+		w.cfg.WindowLeft = float64(r.Left)
+		w.cfg.WindowTop = float64(r.Top)
 	}
-	procGetWindowRect.Call(uintptr(w.hwnd), uintptr(unsafe.Pointer(&rect)))
-	w.cfg.WindowLeft = float64(rect.Left)
-	w.cfg.WindowTop = float64(rect.Top)
 }
-
-func (w *Window) persist() {
+func (w *Window) persist() error {
+	w.syncPositionFromView()
 	w.savePosition()
-	w.cfg.CharIndex = w.charIndex
-	w.cfg.LineIndex = w.bufLineIndex
-	_ = config.Save(w.cfg)
+	if err := config.SaveProgress(w.cfg.BookPath, w.position, w.cfg.WindowLeft, w.cfg.WindowTop); err != nil {
+		return fmt.Errorf("保存阅读进度失败: %w", err)
+	}
+	w.cfg.PositionBytes = w.position
+	w.cfg.SchemaVersion = 2
+	w.cfg.CharIndex = 0
+	w.cfg.LineIndex = 0
 	if w.onSave != nil {
-		w.onSave(w.cfg)
+		cfg := w.cfg
+		go w.onSave(cfg)
+	}
+	return nil
+}
+
+func (w *Window) hotkeys(cfg config.Settings) []struct {
+	id          int
+	name, value string
+} {
+	return []struct {
+		id          int
+		name, value string
+	}{
+		{idHotkeyUp, "上一页", cfg.Hotkeys.Up}, {idHotkeyDown, "下一页", cfg.Hotkeys.Down}, {idHotkeyHide, "隐藏", cfg.Hotkeys.Hide}, {idHotkeyShow, "显示", cfg.Hotkeys.Show}, {idHotkeyMove, "重置位置", cfg.Hotkeys.Move},
 	}
 }
-
-func (w *Window) registerHotkeys() {
-	base := uintptr(w.hwnd)
-	procRegisterHotKey.Call(base, idHotkeyUp, 0, 0x26)
-	procRegisterHotKey.Call(base, idHotkeyDown, 0, 0x28)
-	procRegisterHotKey.Call(base, idHotkeyHide, modAlt, 0x43)
-	procRegisterHotKey.Call(base, idHotkeyShow, modAlt, 0x53)
-	procRegisterHotKey.Call(base, idHotkeyMove, modAlt, 0x54)
+func (w *Window) registerHotkeys(cfg config.Settings, visible bool) error {
+	if err := hotkey.Validate(cfg.Hotkeys.Map()); err != nil {
+		return err
+	}
+	for _, k := range w.hotkeys(cfg) {
+		if !visible && (k.id == idHotkeyUp || k.id == idHotkeyDown) {
+			continue
+		}
+		b, err := hotkey.Parse(k.value)
+		if err != nil {
+			w.unregisterHotkeys()
+			return fmt.Errorf("%s快捷键: %w", k.name, err)
+		}
+		if r, _, e := procRegisterHotKey.Call(uintptr(w.hwnd), uintptr(k.id), uintptr(b.Modifiers|0x4000), uintptr(b.Key)); r == 0 {
+			w.unregisterHotkeys()
+			return fmt.Errorf("%s快捷键 %s 被其他程序占用或无法注册: %w", k.name, b.Label, e)
+		}
+		w.registered[k.id] = true
+	}
+	return nil
 }
-
 func (w *Window) unregisterHotkeys() {
-	base := uintptr(w.hwnd)
-	procUnregisterHotKey.Call(base, idHotkeyUp)
-	procUnregisterHotKey.Call(base, idHotkeyDown)
-	procUnregisterHotKey.Call(base, idHotkeyHide)
-	procUnregisterHotKey.Call(base, idHotkeyShow)
-	procUnregisterHotKey.Call(base, idHotkeyMove)
+	for id := range w.registered {
+		procUnregisterHotKey.Call(uintptr(w.hwnd), uintptr(id))
+		delete(w.registered, id)
+	}
 }
-
-func (w *Window) handleHotkey(id int) {
-	w.keyMu.Lock()
-	defer w.keyMu.Unlock()
-
+func (w *Window) show() error {
+	if !w.visible {
+		// 只重新获取翻页热键；显示、隐藏等入口保持注册。
+		added := []int{}
+		for _, k := range w.hotkeys(w.cfg) {
+			if k.id != idHotkeyUp && k.id != idHotkeyDown {
+				continue
+			}
+			b, err := hotkey.Parse(k.value)
+			if err != nil {
+				return err
+			}
+			r, _, e := procRegisterHotKey.Call(uintptr(w.hwnd), uintptr(k.id), uintptr(b.Modifiers|0x4000), uintptr(b.Key))
+			if r == 0 {
+				for _, id := range added {
+					procUnregisterHotKey.Call(uintptr(w.hwnd), uintptr(id))
+					delete(w.registered, id)
+				}
+				return fmt.Errorf("无法显示阅读条：%s快捷键 %s 被占用: %w", k.name, b.Label, e)
+			}
+			added = append(added, k.id)
+			w.registered[k.id] = true
+		}
+	}
+	w.visible = true
+	w.ensureWindowVisible()
+	return nil
+}
+func (w *Window) hide() error {
+	err := w.persist()
+	for _, id := range []int{idHotkeyUp, idHotkeyDown} {
+		procUnregisterHotKey.Call(uintptr(w.hwnd), uintptr(id))
+		delete(w.registered, id)
+	}
+	w.visible = false
+	procShowWindow.Call(uintptr(w.hwnd), swHide)
+	return err
+}
+func (w *Window) handleHotkey(id int) error {
 	switch id {
 	case idHotkeyHide:
-		procShowWindow.Call(uintptr(w.hwnd), swHide)
+		return w.hide()
 	case idHotkeyShow:
-		procShowWindow.Call(uintptr(w.hwnd), swShow)
-		procSetWindowPos.Call(uintptr(w.hwnd), ^uintptr(0), 0, 0, 0, 0, 0x0003|0x0010)
+		return w.show()
 	case idHotkeyMove:
-		procSetWindowPos.Call(uintptr(w.hwnd), 0, 100, 100, 0, 0, 0x0001|0x0004)
-		w.paint()
+		procSetWindowPos.Call(uintptr(w.hwnd), 0, 100, 100, 0, 0, 0x0015)
+		w.clampWindowOnScreen()
+		return w.persist()
 	case idHotkeyUp:
-		w.pageUp()
-		w.syncCharIndexFromView()
-		w.paint()
-		w.persist()
+		if w.visible {
+			w.pageUp()
+			return w.persist()
+		}
 	case idHotkeyDown:
-		w.pageDown()
-		w.syncCharIndexFromView()
-		w.paint()
-		w.persist()
+		if w.visible {
+			w.pageDown()
+			return w.persist()
+		}
 	}
+	return nil
 }
