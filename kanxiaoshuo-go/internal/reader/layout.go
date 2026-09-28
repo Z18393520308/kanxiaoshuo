@@ -37,6 +37,14 @@ func createFont(cfg config.Settings) (windows.Handle, error) {
 	return windows.Handle(h), nil
 }
 func (w *Window) lineHeightPx() int {
+	// Rich Edit 的实际行高可能包含字体回退/额外行距，直接测量相邻行。
+	second, _, _ := procSendMessageW.Call(uintptr(w.editHwnd), emLineIndex, 1, 0)
+	if int32(second) > 0 {
+		firstPoint, secondPoint := w.characterPoint(0), w.characterPoint(int(second))
+		if height := secondPoint.Y - firstPoint.Y; height > 0 {
+			return int(height)
+		}
+	}
 	dc, _, _ := procGetDC.Call(uintptr(w.editHwnd))
 	if dc == 0 {
 		return w.cfg.FontSize + 4
@@ -49,11 +57,12 @@ func (w *Window) lineHeightPx() int {
 	if r == 0 {
 		return w.cfg.FontSize + 4
 	}
-	// 标准 EDIT 以 tmHeight 为折行行高，不使用 DrawText 的外部行距。
+	// 控件尚未完成排版时回退到字体度量。
 	return max(1, int(tm.Height))
 }
 func (w *Window) applyFontAndLayout() {
 	procSendMessageW.Call(uintptr(w.editHwnd), wmSetFont, uintptr(w.fontHandle), 0)
+	w.setEditText("国Ag\r\n国Ag")
 	var r rect
 	procGetWindowRect.Call(uintptr(w.hwnd), uintptr(unsafe.Pointer(&r)))
 	height := w.lineHeightPx()*w.visibleLines() + 8

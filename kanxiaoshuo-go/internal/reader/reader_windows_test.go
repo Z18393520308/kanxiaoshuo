@@ -15,7 +15,7 @@ import (
 	"kanxiaoshuo-go/internal/hotkey"
 )
 
-// 在 Windows CI 上验证真正的 EDIT 排版和 RegisterHotKey，而非复刻生产算法。
+// 在 Windows CI 上验证真正的 Rich Edit 排版和 RegisterHotKey，而非复刻生产算法。
 // 本地跨平台测试只覆盖编码与位置转换，不能代替本组系统集成测试。
 func TestReaderWindowsLifecycle(t *testing.T) {
 	dir := t.TempDir()
@@ -94,6 +94,7 @@ func TestReaderWindowsLifecycle(t *testing.T) {
 	cfg.WindowWidth = 320
 	cfg.VisibleLines = 5
 	cfg.FontSize = 18
+	cfg.LetterSpacing = 6
 	cfg.FontColor = "#FFFFFF"
 	if err := ApplySettings(cfg); err != nil {
 		t.Fatal(err)

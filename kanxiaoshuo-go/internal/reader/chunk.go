@@ -10,7 +10,7 @@ const (
 
 func (w *Window) visibleLines() int { return max(1, min(15, w.cfg.VisibleLines)) }
 
-// displayAt 每次仅装入一段完整 UTF-8 文本；分页位置由同一个真实 EDIT 的排版返回。
+// displayAt 每次仅装入一段完整 UTF-8 文本；分页位置由同一个 Rich Edit 的排版返回。
 // 不再使用 DrawText 估算行数，也不混用 rune 数和字节数。
 func (w *Window) displayAt(pos int) {
 	w.position = byteBoundary(w.text, pos)
@@ -35,7 +35,7 @@ func (w *Window) lineByteOffset(line int) int {
 	if int32(r) < 0 {
 		return -1
 	}
-	return utf16OffsetToBytes(w.chunkText, int(r))
+	return richEditOffsetToBytes(w.chunkText, int(r))
 }
 func (w *Window) syncPositionFromView() {
 	if w.chunkText == "" {
@@ -81,7 +81,7 @@ func (w *Window) pageUp() {
 		return
 	}
 	// 刚续读或重新排版后没有本次翻页历史，在当前起点之前取一段上下文，
-	// 使用 EDIT 的实际折行找到紧邻当前页的上一屏，保证边界不丢字。
+	// 使用 Rich Edit 的实际折行找到紧邻当前页的上一屏，保证边界不丢字。
 	end := w.position
 	start := byteBoundary(w.text, max(0, end-chunkBytes))
 	previous := w.text[start:end]
@@ -91,7 +91,7 @@ func (w *Window) pageUp() {
 	// 末尾 CRLF 产生的空行不属于上一屏内容。
 	if lines > 1 {
 		last, _, _ := procSendMessageW.Call(uintptr(w.editHwnd), emLineIndex, uintptr(lines-1), 0)
-		if int(last) == utf16Length(previous) {
+		if int(last) == richEditLength(previous) {
 			lines--
 		}
 	}
@@ -99,7 +99,7 @@ func (w *Window) pageUp() {
 	offset, _, _ := procSendMessageW.Call(uintptr(w.editHwnd), emLineIndex, uintptr(line), 0)
 	pos := start
 	if int32(offset) >= 0 {
-		pos += utf16OffsetToBytes(previous, int(offset))
+		pos += richEditOffsetToBytes(previous, int(offset))
 	}
 	if pos >= end {
 		pos = start

@@ -22,6 +22,7 @@ var colorPattern = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 func Normalize(s Settings) Settings {
 	s.VisibleLines = clamp(s.VisibleLines, 1, 15)
 	s.FontSize = clamp(s.FontSize, 3, 48)
+	s.LetterSpacing = clamp(s.LetterSpacing, 0, 20)
 	if s.WindowWidth == 0 {
 		s.WindowWidth = ReaderWidth
 	}

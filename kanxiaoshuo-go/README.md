@@ -1,6 +1,6 @@
 # 摸鱼联盟开发说明
 
-应用入口为 `main.go`，目标系统 Windows x64。设置界面由 WebView2 承载，阅读条使用原生 Win32 EDIT 控件，页面资源通过 `go:embed` 放入单个 EXE。
+应用入口为 `main.go`，目标系统 Windows x64。设置界面由 WebView2 承载，阅读条使用 Windows 自带的 Rich Edit 控件（`msftedit.dll`），页面资源通过 `go:embed` 放入单个 EXE。字距使用原生字符格式，分页读取同一控件的实际行索引，并将 Rich Edit 的单字符段落标记映射回既有 CRLF / UTF-8 字节书签。
 
 ## 模块
 
@@ -53,6 +53,7 @@ GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -mod=readonly -trimpath -ldflag
 - `book_path` / `position_bytes`：当前书与规范化文本的 UTF-8 字节偏移。
 - `recent_books`：每本书的路径、独立位置及最近阅读时间。
 - `font_family` / `font_size` / `font_color` / `visible_lines` / `window_width`：阅读样式。
+- `letter_spacing`：附加字间距，0–20 像素；旧配置缺省为 0。
 - `window_left` / `window_top`：阅读条窗口位置。
 - `hotkeys`：`up`、`down`、`hide`、`show`、`move`。
 - 旧 `char_index` / `line_index` 仅用于兼容迁移，成功保存新进度后清零。

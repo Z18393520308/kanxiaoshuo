@@ -15,7 +15,7 @@ import (
 // ProgressFn 读取进度回调，percent 为 0–100。
 type ProgressFn func(percent int)
 
-// Load 返回统一的 UTF-8 文本。保留段落，换行统一为 Windows EDIT 所需的 CRLF。
+// Load 返回统一的 UTF-8 文本。保留段落和历史书签格式，换行统一为 CRLF。
 // 阅读位置指向这份规范化文本的 UTF-8 字节位置，与原文件编码无关。
 func Load(path string) (string, error) { return LoadWithProgress(path, nil) }
 

@@ -76,7 +76,7 @@ func Run() error {
 
 	w := webview2.NewWithOptions(webview2.WebViewOptions{
 		AutoFocus:     true,
-		WindowOptions: webview2.WindowOptions{Title: "摸鱼联盟", Width: 1000, Height: 730, Center: true},
+		WindowOptions: webview2.WindowOptions{Title: "摸鱼联盟", Width: 840, Height: 600, Center: true},
 	})
 	if w == nil {
 		return errors.New("无法打开设置窗口。请安装 Microsoft Edge WebView2 Evergreen 运行时后重试。\n下载地址：https://go.microsoft.com/fwlink/p/?LinkId=2124703")
@@ -95,7 +95,7 @@ func Run() error {
 	if err := w.Bind("nativeCommand", app.command); err != nil {
 		return fmt.Errorf("初始化设置窗口通信失败：%w", err)
 	}
-	w.SetSize(1000, 730, webview2.HintNone)
+	w.SetSize(840, 600, webview2.HintNone)
 	w.SetSize(760, 560, webview2.HintMin)
 	w.SetTitle("摸鱼联盟 · 阅读设置")
 	app.tray, err = newTrayIcon(app)

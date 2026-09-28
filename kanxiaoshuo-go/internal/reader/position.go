@@ -1,6 +1,9 @@
 package reader
 
-import "unicode/utf8"
+import (
+	"strings"
+	"unicode/utf8"
+)
 
 const chunkBytes = 64 * 1024
 
@@ -55,6 +58,38 @@ func utf16Length(text string) int {
 	return n
 }
 
+// Rich Edit 将一对 CRLF 存为一个段落字符，但书签仍指向原始 UTF-8 文本。
+// 必须连同 CRLF 一起计数，不能直接把 Rich Edit 下标传给普通 UTF-16 换算。
+func richEditOffsetToBytes(text string, units int) int {
+	used := 0
+	for i := 0; i < len(text); {
+		if used >= units {
+			return i
+		}
+		r, size := utf8.DecodeRuneInString(text[i:])
+		step := 1
+		if r > 0xffff {
+			step = 2
+		}
+		if used+step > units {
+			return i
+		}
+		if r == '\r' && i+1 < len(text) && text[i+1] == '\n' {
+			size = 2
+		}
+		used += step
+		i += size
+		if used == units {
+			return i
+		}
+	}
+	return len(text)
+}
+
+func richEditLength(text string) int {
+	return utf16Length(text) - strings.Count(text, "\r\n")
+}
+
 // migrateLegacyPosition 旧版会删掉换行：小书按 rune、大于 3 MB 按字节计数。
 // 只能迁移旧版保存的近似位置，无法恢复旧版本身估算时已丢失的信息。
 func migrateLegacyPosition(text string, oldIndex, oldLine, fontSize, width int) int {
@@ -91,9 +126,9 @@ func migrateLegacyPosition(text string, oldIndex, oldLine, fontSize, width int) 
 	return len(text)
 }
 
-// clampRect 可处理位于主屏左侧的负坐标显示器。
-func clampRect(left, top, width, height, workLeft, workTop, workRight, workBottom int32) (int32, int32) {
-	maxLeft := max(workLeft, workRight-width)
-	maxTop := max(workTop, workBottom-height)
-	return min(max(left, workLeft), maxLeft), min(max(top, workTop), maxTop)
+// clampRect 使用完整屏幕边界，可处理位于主屏左侧的负坐标显示器。
+func clampRect(left, top, width, height, screenLeft, screenTop, screenRight, screenBottom int32) (int32, int32) {
+	maxLeft := max(screenLeft, screenRight-width)
+	maxTop := max(screenTop, screenBottom-height)
+	return min(max(left, screenLeft), maxLeft), min(max(top, screenTop), maxTop)
 }

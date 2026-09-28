@@ -53,6 +53,7 @@ type Settings struct {
 	WindowWidth   int          `json:"window_width"`
 	FontFamily    string       `json:"font_family"`
 	FontSize      int          `json:"font_size"`
+	LetterSpacing int          `json:"letter_spacing"`
 	FontColor     string       `json:"font_color"`
 	VisibleLines  int          `json:"visible_lines"`
 	Hotkeys       Hotkeys      `json:"hotkeys"`
@@ -190,6 +191,7 @@ func mergePreferences(current, s Settings) (Settings, error) {
 		return current, err
 	}
 	current.FontSize = s.FontSize
+	current.LetterSpacing = s.LetterSpacing
 	current.FontColor = s.FontColor
 	current.FontFamily = s.FontFamily
 	current.VisibleLines = s.VisibleLines

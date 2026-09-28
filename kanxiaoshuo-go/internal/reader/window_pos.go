@@ -34,7 +34,9 @@ func (w *Window) clampWindowOnScreen() {
 	if ok, _, _ := procGetMonitorInfoW.Call(monitor, uintptr(unsafe.Pointer(&info))); ok == 0 {
 		return
 	}
-	left, top := clampRect(r.Left, r.Top, r.Right-r.Left, r.Bottom-r.Top, info.Work.Left, info.Work.Top, info.Work.Right, info.Work.Bottom)
+	// 阅读条允许覆盖任务栏。Work 会排除任务栏，导致拖入后被弹回桌面；
+	// 只按整个显示器边界纠正真正出屏的位置（包括副屏断开后的坐标）。
+	left, top := clampRect(r.Left, r.Top, r.Right-r.Left, r.Bottom-r.Top, info.Monitor.Left, info.Monitor.Top, info.Monitor.Right, info.Monitor.Bottom)
 	if left != r.Left || top != r.Top {
 		procSetWindowPos.Call(uintptr(w.hwnd), 0, uintptr(left), uintptr(top), 0, 0, 0x0015)
 	}

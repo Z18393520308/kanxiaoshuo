@@ -34,7 +34,10 @@ var (
 )
 
 func (w *Window) createEditHost() error {
-	class, _ := windows.UTF16PtrFromString("EDIT")
+	if err := richEditDLL.Load(); err != nil {
+		return fmt.Errorf("加载阅读排版组件失败: %w", err)
+	}
+	class, _ := windows.UTF16PtrFromString("RICHEDIT50W")
 	empty, _ := windows.UTF16PtrFromString("")
 	inst, _, _ := procGetModuleHandleW()
 	h, _, e := procCreateWindowExW.Call(0, uintptr(unsafe.Pointer(class)), uintptr(unsafe.Pointer(empty)), wsChild|wsVisible|esMultiline|esReadonly|esAutoVScroll, 0, 0, uintptr(w.cfg.WindowWidth), 80, uintptr(w.hwnd), 0, uintptr(inst), 0)
@@ -46,6 +49,8 @@ func (w *Window) createEditHost() error {
 	theme := windows.NewLazySystemDLL("uxtheme.dll")
 	theme.NewProc("SetWindowTheme").Call(h, uintptr(unsafe.Pointer(empty)), uintptr(unsafe.Pointer(empty)))
 	w.oldEditProc, _, _ = procSetWindowLongPtrW.Call(h, gwlWndProc, readerEditCallback)
+	procSendMessageW.Call(h, emSetTextMode, 1, 0)          // TM_PLAINTEXT，仅显示书籍原文。
+	procSendMessageW.Call(h, emSetTypographyOptions, 1, 1) // TO_ADVANCEDTYPOGRAPHY，实际折行计入字距。
 	procSendMessageW.Call(h, emSetReadOnly, 1, 0)
 	procSendMessageW.Call(h, emSetLimit, chunkBytes*2, 0)
 	procSendMessageW.Call(h, emSetMargins, 3, 0)
@@ -96,6 +101,8 @@ func (w *Window) updateTransparency() {
 	w.colorKey = key
 	w.brush, _, _ = procCreateSolidBrush.Call(uintptr(key))
 	procSetLayeredWindowAttributes.Call(uintptr(w.hwnd), uintptr(key), 0, lwaColorKey)
+	procSendMessageW.Call(uintptr(w.editHwnd), emSetBkgndColor, 0, uintptr(key))
+	w.applyTextFormat()
 	procInvalidateRect.Call(uintptr(w.hwnd), 0, 1)
 	procInvalidateRect.Call(uintptr(w.editHwnd), 0, 1)
 }
@@ -120,6 +127,9 @@ func (w *Window) setEditText(text string) {
 	if err != nil {
 		return
 	}
+	// 分块可能为了填满一屏而扩展；Rich Edit 的字符上限同步扩展，避免截断正文。
+	procSendMessageW.Call(uintptr(w.editHwnd), 0x0400+53, 0, uintptr(max(chunkBytes*2, richEditLength(text)+1))) // EM_EXLIMITTEXT
 	procSetWindowTextW.Call(uintptr(w.editHwnd), uintptr(unsafe.Pointer(p)))
+	w.applyTextFormat()
 	procHideCaret.Call(uintptr(w.editHwnd))
 }

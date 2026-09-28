@@ -285,20 +285,50 @@ func TestRelocateHistoryOntoCurrentBookUsesOriginalProgress(t *testing.T) {
 func TestNormalizeBoundsAndWhiteTextColor(t *testing.T) {
 	s := Default()
 	s.FontSize, s.VisibleLines, s.WindowWidth = 99, 20, 9000
+	s.LetterSpacing = 99
 	s.FontColor = "#ffffff"
 	s.WindowLeft, s.WindowTop = math.NaN(), math.Inf(1)
 	s.Hotkeys.Up = "shift + ctrl + pageup"
 	n := Normalize(s)
-	if n.FontSize != 48 || n.VisibleLines != 15 || n.WindowWidth != 1600 || n.FontColor != "#FFFFFF" || n.Hotkeys.Up != "Ctrl+Shift+PgUp" {
+	if n.FontSize != 48 || n.VisibleLines != 15 || n.WindowWidth != 1600 || n.LetterSpacing != 20 || n.FontColor != "#FFFFFF" || n.Hotkeys.Up != "Ctrl+Shift+PgUp" {
 		t.Fatalf("bad normalization: %+v", n)
 	}
 	if n.WindowLeft != 100 || n.WindowTop != 100 {
 		t.Fatalf("nonfinite position persisted: %+v", n)
 	}
 	s.FontSize, s.VisibleLines, s.WindowWidth = -1, -1, -1
+	s.LetterSpacing = -1
 	n = Normalize(s)
-	if n.FontSize != 3 || n.VisibleLines != 1 || n.WindowWidth != 240 {
+	if n.FontSize != 3 || n.VisibleLines != 1 || n.WindowWidth != 240 || n.LetterSpacing != 0 {
 		t.Fatalf("bad lower bounds: %+v", n)
+	}
+}
+
+func TestLetterSpacingMigratesAndSurvivesProgress(t *testing.T) {
+	p := isolatedConfig(t)
+	if err := os.WriteFile(p, []byte(`{"schema_version":2,"book_path":"字距.txt","font_size":18}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	settings := mustLoad(t)
+	if settings.LetterSpacing != 0 {
+		t.Fatal("old configuration must use natural spacing")
+	}
+	if err := SaveProgress(settings.BookPath, 300, 100, 1060); err != nil {
+		t.Fatal(err)
+	}
+	settings.LetterSpacing = 8
+	if _, err := SavePreferences(settings); err != nil {
+		t.Fatal(err)
+	}
+	loaded := mustLoad(t)
+	if loaded.LetterSpacing != 8 || loaded.PositionBytes != 300 || loaded.WindowTop != 1060 {
+		t.Fatalf("letter spacing changed progress/placement: %+v", loaded)
+	}
+	if err := SaveProgress(settings.BookPath, 600, 100, 1060); err != nil {
+		t.Fatal(err)
+	}
+	if loaded := mustLoad(t); loaded.LetterSpacing != 8 || loaded.PositionBytes != 600 {
+		t.Fatalf("progress save lost spacing: %+v", loaded)
 	}
 }
 

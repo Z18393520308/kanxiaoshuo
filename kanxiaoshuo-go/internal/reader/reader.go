@@ -445,7 +445,7 @@ func (w *Window) wndProc(hwnd windows.Handle, message uint32, wParam, lParam uin
 		}
 		return 0
 	case wmExitSizeMove:
-		w.clampWindowOnScreen()
+		w.ensureWindowVisible()
 		if err := w.persist(); err != nil {
 			showReaderError(err.Error())
 		}

@@ -30,6 +30,16 @@ test('设置支持完整字号、行数、宽度范围和纯白文字，拒绝�
   }
 });
 
+test('字间距兼容旧配置，接受 0–20 像素并拒绝小数和越界值', () => {
+  assert.equal(validateSettings(fields()).letter_spacing, 0);
+  assert.equal(validateSettings(fields({ letter_spacing: 0 })).letter_spacing, 0);
+  assert.equal(validateSettings(fields({ letter_spacing: 8 })).letter_spacing, 8);
+  assert.equal(validateSettings(fields({ letter_spacing: 20 })).letter_spacing, 20);
+  for (const letter_spacing of [-1, 21, 1.5, 'invalid']) {
+    assert.throws(() => validateSettings(fields({ letter_spacing })), /字间距/);
+  }
+});
+
 test('异步桥接等待后台真实结果，多个请求可乱序返回', async () => {
   const sent = [];
   const client = createNativeClient((raw) => { sent.push(JSON.parse(raw)); return Promise.resolve(null); });

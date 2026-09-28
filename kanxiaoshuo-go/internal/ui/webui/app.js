@@ -27,8 +27,8 @@
   function validateSettings(fields) {
     const result = { ...fields, book_path: String(fields.book_path || "").trim(), hotkeys: {} };
     if (!result.book_path) throw new Error("请先选择 TXT 文件");
-    for (const [name, min, max, label] of [["font_size", 3, 48, "字号"], ["visible_lines", 1, 15, "行数"], ["window_width", 240, 1600, "阅读条宽度"]]) {
-      const value = Number(fields[name]);
+    for (const [name, min, max, label] of [["font_size", 3, 48, "字号"], ["visible_lines", 1, 15, "行数"], ["window_width", 240, 1600, "阅读条宽度"], ["letter_spacing", 0, 20, "字间距"]]) {
+      const value = Number(name === "letter_spacing" ? fields[name] ?? 0 : fields[name]);
       if (!Number.isInteger(value) || value < min || value > max) throw new Error(label + "应在 " + min + "–" + max + " 之间");
       result[name] = value;
     }
@@ -132,13 +132,14 @@
     busy = value;
     root.document.querySelectorAll("button, input").forEach((element) => { element.disabled = value; });
     $("btnSave").disabled = value || !configured;
-    $("btnSave").textContent = value ? "正在处理，请稍候…" : controller.current && controller.current.started ? "保存并继续阅读 →" : "保存并开始阅读 →";
+    $("btnSave").textContent = value ? "正在处理，请稍候…" : controller.current && controller.current.started ? "保存并继续阅读" : "保存并开始阅读";
     $("btnExit").disabled = false;
   }
   function formValues() {
     return {
       book_path: $("bookPath").value,
       font_size: Number($("fontSize").value),
+      letter_spacing: Number($("letterSpacing").value),
       font_color: $("fontColor").value,
       visible_lines: Number($("visibleLines").value),
       window_width: Number($("windowWidth").value),
@@ -148,16 +149,39 @@
   }
   function updatePreview() {
     const values = formValues();
-    $("fontSizeVal").textContent = values.font_size + " px";
-    $("visibleLinesVal").textContent = values.visible_lines + " 行";
+    $("fontSizeVal").textContent = values.font_size;
+    $("visibleLinesVal").textContent = values.visible_lines;
+    $("letterSpacingVal").textContent = values.letter_spacing + " px";
     $("windowWidthVal").textContent = values.window_width + " px";
     $("previewText").style.fontSize = values.font_size + "px";
+    $("previewText").style.letterSpacing = values.letter_spacing + "px";
     $("previewText").style.fontFamily = values.font_family || "Microsoft YaHei UI";
     $("previewText").style.color = values.font_color;
-    $("previewText").textContent = values.font_size >= 32 ? "故事还在继续。" : "风翻过书页，故事还在继续。";
+    $("previewText").textContent = values.font_size + values.letter_spacing >= 48 ? "阅读预览" : values.font_size >= 32 || values.letter_spacing >= 4 ? "阅读样式预览" : "这是你选择的字体大小与颜色预览";
     const channels = values.font_color.slice(1).match(/.{2}/g).map((v) => parseInt(v, 16));
-    $("preview").classList.toggle("dark", channels[0] * .299 + channels[1] * .587 + channels[2] * .114 > 175);
+    $("preview").classList.toggle("dark", Math.min(...channels) > 235);
     root.document.querySelectorAll(".swatch").forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.color.toLowerCase() === values.font_color.toLowerCase())));
+  }
+  function updateShortcutSummary() {
+    const symbols = { Up: "↑", Down: "↓", Left: "←", Right: "→" };
+    for (const [name, id] of Object.entries(hotkeyIDs)) {
+      const summary = $("shortcut" + name[0].toUpperCase() + name.slice(1));
+      summary.replaceChildren();
+      const value = $(id).value;
+      summary.setAttribute("aria-label", HOTKEY_LABELS[name] + "：" + value);
+      summary.title = HOTKEY_LABELS[name] + "：" + value;
+      value.split("+").forEach((key, index) => {
+        if (index) {
+          const plus = root.document.createElement("span");
+          plus.className = "key-plus";
+          plus.textContent = "+";
+          summary.append(plus);
+        }
+        const keycap = root.document.createElement("kbd");
+        keycap.textContent = symbols[key] || key;
+        summary.append(keycap);
+      });
+    }
   }
   function displayDate(value) {
     const date = new Date(value);
@@ -213,6 +237,7 @@
     $("bookPath").value = settings.book_path || "";
     $("bookPath").title = settings.book_path || "";
     $("fontSize").value = settings.font_size;
+    $("letterSpacing").value = settings.letter_spacing ?? 0;
     $("fontColor").value = settings.font_color;
     $("visibleLines").value = settings.visible_lines;
     $("windowWidth").value = settings.window_width;
@@ -228,6 +253,7 @@
     $("btnClose").title = view.started ? "阅读继续运行，可从系统托盘重新打开设置" : "尚未开始阅读，关闭此窗口将退出程序";
     renderRecent(view);
     updatePreview();
+    updateShortcutSummary();
   }
   const controller = createSettingsController(client, { data: render, busy: setBusy });
   async function chooseFile() {
@@ -259,16 +285,17 @@
     } catch (error) { setHint(error.message); }
   };
 
-  ["fontSize", "visibleLines", "windowWidth", "fontFamily", "fontColor"].forEach((id) => $(id).addEventListener("input", updatePreview));
+  ["fontSize", "letterSpacing", "visibleLines", "windowWidth", "fontFamily", "fontColor"].forEach((id) => $(id).addEventListener("input", updatePreview));
   root.document.querySelectorAll(".swatch").forEach((button) => button.addEventListener("click", () => { $("fontColor").value = button.dataset.color; updatePreview(); }));
   for (const id of Object.values(hotkeyIDs)) {
     $(id).addEventListener("blur", () => {
-      try { $(id).value = normalizeHotkey($(id).value); $(id).classList.remove("invalid"); }
+      try { $(id).value = normalizeHotkey($(id).value); $(id).classList.remove("invalid"); updateShortcutSummary(); }
       catch (_) { $(id).classList.add("invalid"); }
     });
   }
   $("btnResetHotkeys").addEventListener("click", () => {
     for (const [name, id] of Object.entries(hotkeyIDs)) { $(id).value = DEFAULT_HOTKEYS[name]; $(id).classList.remove("invalid"); }
+    updateShortcutSummary();
     setHint("已恢复默认快捷键，保存后生效。", true);
   });
   $("btnPick").addEventListener("click", pick);

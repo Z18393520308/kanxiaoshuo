@@ -4,13 +4,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '../webui');
 const initial = {
-  settings: { book_path: 'C:\\小说\\山海之间.txt', font_size: 12, font_color: '#000000', visible_lines: 2, window_width: 800, font_family: 'Microsoft YaHei', hotkeys: { up: 'Alt+Up', down: 'Alt+Down', hide: 'Alt+C', show: 'Alt+S', move: 'Alt+T' } },
+  settings: { book_path: 'C:\\小说\\山海之间.txt', font_size: 21, letter_spacing: 0, font_color: '#9DE5FE', visible_lines: 2, window_width: 800, font_family: 'Microsoft YaHei', hotkeys: { up: 'Alt+Up', down: 'Alt+Down', hide: 'Alt+C', show: 'Alt+S', move: 'Alt+T' } },
   recent_books: [
     { path: 'C:\\小说\\山海之间.txt', name: '山海之间.txt', last_read: '2026-09-26T10:00:00+08:00', position_bytes: 9200, missing: false },
     { path: 'C:\\小说\\去有风的地方.txt', name: '去有风的地方.txt', last_read: '2026-09-24T10:00:00+08:00', position_bytes: 3100, missing: false },
     { path: 'D:\\旧书架\\星辰与远方.txt', name: '星辰与远方.txt', last_read: '2026-09-22T10:00:00+08:00', position_bytes: 800, missing: true }
   ],
-  started: true, version: '0.2.0'
+  started: false, version: fs.readFileSync(path.resolve(__dirname, '../../../../VERSION'), 'utf8').trim()
 };
 const fixture = `window.__fixture=${JSON.stringify(initial)}; window.nativeCommand = function(raw) {
   const request=JSON.parse(raw), view=window.__fixture;
@@ -32,7 +32,7 @@ const server = http.createServer((req, res) => {
   try {
     let data = fs.readFileSync(file);
     if (pathname === '/' || pathname === '/index.html') data = data.toString().replace('<script src="/app.js"></script>', '<script src="/fixture.js"></script><script src="/app.js"></script>');
-    res.setHeader('Content-Type', ({ '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.jpeg': 'image/jpeg' })[path.extname(file)] || 'application/octet-stream');
+    res.setHeader('Content-Type', ({ '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.jpeg': 'image/jpeg', '.png': 'image/png' })[path.extname(file)] || 'application/octet-stream');
     res.end(data);
   } catch (_) { res.writeHead(404); res.end('Not found'); }
 });
